@@ -1,0 +1,388 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+    <title>Generate Circuits</title>
+
+    <link rel="stylesheet" href="styles.css">
+
+    <script src="libs/Chart.min.js"></script>
+    <script src="toolparameters.js"></script>
+
+    <script src="circuits/gatestring.js"></script>
+    <script src="circuits/tgatesprocess.js"></script>
+    <script src="circuits/chemcircuit.js"></script>
+    <script src="circuits/addercircuit.js"></script>
+
+    <script src="tabs.js"></script>
+    <script src="astateconsume.js"></script>
+    <script src="reorderwires.js"></script>
+    <script src="binarytools.js"></script>
+    <script src="quirklink.js"></script>
+    <script src="gatesslider.js"></script>
+    <script src="circuitanalysis.js"></script>
+
+<script>
+
+var gateList = new Array();
+
+function pressGenerate()
+{
+    readToolParameters();
+
+    switch(toolParameters.circuitGenerator)
+    {
+        case "chemistry":
+            generateChemCircuit();
+            break;
+        case "chemistry2":
+            generateChemCircuitNewUncompute();
+            break;
+        case "adder":
+            generateAdderCircuit();
+            break;
+    }
+
+    //mai exista un resetdata in astatesconsume
+    resetAnalysisData();
+    var ngatelist = oneTGatePerTimeStep(gateList);
+    var schedlist = scheduleGateList(ngatelist);
+
+    //unrolled the single qubit gates
+    writeFileHeader(toolParameters.nrVars, "circuitnew");
+    for(var y=0; y<schedlist.length; y++)
+    {
+        echo(schedlist[y], "circuitnew");
+    }
+
+    /*
+     analyse the circuit and plot the data resulting from the analysis
+     */
+    analyseCircuit(schedlist, toolParameters.lookAhead);
+
+    var obj = constructQuirkLink(schedlist);
+
+    echo(undefined, "quirkLink");
+    echo(obj.link, "quirkLink");
+
+    document.getElementById("quirkiframe").src = obj.link;
+
+    console.log(obj.link.length);
+
+    var distillationDepth = (analysisData.nrTGates * toolParameters.distillationLength);
+
+    echo(undefined, "stats");
+    echo("number wires " + toolParameters.nrVars, "stats");
+    echo("current gate list length " + (gateList.length - 3), "stats");
+    echo("current circuit depth " + analysisData.timesteps, "stats");
+    echo("nr T gates "  + analysisData.nrTGates, "stats");
+    echo("single distillation depth " + toolParameters.distillationLength, "stats");
+    echo("total T distillations depth " + distillationDepth, "stats");
+
+    document.getElementById("gateslider").min = 1;
+    document.getElementById("gateslider").max = gateList.length - 3;
+    document.getElementById("gateslider").value = 1;
+
+    chartAnalysisData(
+        analysisData.steps,
+        aStatesData.nra.slice(0, distillationDepth + 1),
+        analysisData.counts
+    );
+}
+
+function echo(msg, elementId)
+{
+    var txtField = null;
+    if(elementId == undefined)
+    {
+        txtField = toolParameters.textAreas["circuit"];
+//            document.getElementById("circuit");
+    }
+    else
+    {
+        txtField = toolParameters.textAreas[elementId];
+//            document.getElementById(elementId);
+    }
+
+    if(msg == undefined)
+    {
+        txtField.value = "";
+    }
+    else
+    {
+        txtField.value += msg + "\n";
+    }
+
+    //aici adauga la gateList
+    if(msg != undefined && elementId == undefined && msg[0] != '#')
+    {
+        //if not the default (circuit) then do not add to gateList
+        gateList.push(msg);
+    }
+}
+
+/*
+	... 0, 1, 2 -> ... 2, 1, 0
+*/
+function fromQubitNrToOrderNr(qubitnr, nrLogQubits)
+{
+	return nrLogQubits - 1 - qubitnr;
+}
+
+/*
+	... 2, 1, 0 -> ... 0, 1, 2
+*/
+function fromOrderNrToQubitNr(ordernr, nrLogQubits)
+{
+	return nrLogQubits - 1 - ordernr;
+}
+
+/*
+  Used for H, P, V etc. but not directly T
+*/
+function placeGate(type, qubits, delay)
+{
+	if (! (qubits instanceof Array))
+		echo("placeGate qubits is not Array!");
+
+  if(qubits.length == 0)
+    echo("ERROR: placeCX qubits zero length!");
+
+  var msg = type + "";
+  for(var i=0; i<qubits.length; i++)
+  {
+    msg += " " + qubits[i];
+  }
+
+  /*
+  add time delta
+   */
+  var tmpDelay = 0;
+  if(delay != undefined)
+      tmpDelay = delay;
+  msg += "|" + tmpDelay;//no delta for the moment
+
+  echo(msg);
+}
+
+/*
+  Used for T gate
+*/
+function placeT(correct, qubits, delay)
+{
+  placeGate("t", qubits, delay);
+  if(correct)
+    placeGate("p", qubits, delay);
+}
+
+function placeK(ka, kb, kt, decompose, delay)
+{
+	if(decompose == 1)
+	{
+        placeGate("ix", [ kt ], delay);
+		//this T gate is a direct link from the distillation box
+		//placeT(false, [ kt ] );//do not place the T gate, because of the direct link placeholder
+		placeCX(ka, [ kt ]);
+		placeCX(kb, [ kt ]);
+		placeCX(kt, [ kb, ka ]);
+		/*
+		    This is the classic decomposition from the Gidney paper
+		//placeT(true, [ka, kb, kt]);
+		//placeCX(kt, [ kb, ka ]);
+        //placeGate("h", [ kt ] );
+        //placeGate("p", [ kt ]);
+        */
+		//Replaced the last correction with SHS=V\dagger
+        placeT(true, [ka, kb]);
+        placeT(false, [ kt ], -1);
+        placeCX(kt, [ kb, ka ]);
+        placeGate("v", [ kt ]);
+	}
+	else if(decompose == 2)
+    {
+        placeGate("ix", [ kt ], delay);
+        placeCX(kb, [kt]);
+        placeT(true, [kt], 0);
+        placeCX(ka, [kt]);
+        placeT(true, [kt], 0);
+        placeCX(kb, [kt]);
+        placeT(true, [kt], 0);
+        placeGate("h", [kt]);
+        placeGate("p", [kt]);
+    }
+	else
+	{
+		//echo ("K " + ka + " " + kb + " " + kt);
+        placeGate("K", [ka, kb, kt], 0);
+	}
+}
+
+function placeU(ka, kb, kt, decompose, delay)
+{
+	if(decompose == 1)
+	{
+		placeGate ("mx", [ kt ], delay);
+        placeCZ(kb, [ ka ], true, -1);
+	}
+    else if(decompose == 2)
+    {
+        placeGate ("mx", [ kt ], delay);
+        placeCZ(ka, [ kb ], true, -1);
+    }
+    else if(decompose == 3)
+    {
+        placeCX(kb, [kt], delay);
+        placeGate ("mx", [ kb ]);
+        placeCX(ka, [kt]);
+    }
+	else
+	{
+		placeGate ("U", [ka, kb, kt], 0);
+	}
+}
+
+function placeCZ(control, targets, decompose, delay)
+{
+	if(decompose)
+	{
+		placeGate ("h", targets, delay);
+		//placeGate ("h", [ control ] );
+		placeCX(control, targets );
+		//placeCX(target, [ control ]);
+		placeGate ("h", targets );
+		//placeGate ("h", [ control ] );
+	}
+	else
+	{
+		//echo ("cz " + control + " " + targets);
+        var targets2 = [ control ];
+        placeGate("cz", targets2.concat(targets), delay);
+	}
+}
+
+/*
+  control is qubit
+  targets is array of qubits
+*/
+function placeCX(control, targets, delay)
+{
+	if(!(targets instanceof Array))
+		echo("ERROR: placeCX targets is not Array!");
+		
+	if(targets.length == 0)
+		echo("ERROR: placeCX targets zero length!");
+		
+    var targets2 = [ control ];
+    placeGate("cx", targets2.concat(targets), delay);
+}
+
+function writeFileHeader(nrvars, where)
+{
+    //clear
+    echo(undefined, where);
+
+    //write header
+    echo(".nrVars " + nrvars, where);
+	echo("in " + "-".repeat(nrvars), where);
+	echo("out " + "-".repeat(nrvars), where);
+}
+
+</script>
+</head>
+
+<body>
+<div style="width:40%; float:left">
+    <select id="circuitgenerator" onchange="pressGenerate()">
+        <option value="chemistry">Chemistry</option>
+        <option value="chemistry2">Chemistry2</option>
+        <option value="adder">Adder</option>
+    </select>
+
+    Nr Log Qubits (log_2 N): <input id="nrq" value="2" size="3" type="number" onchange="pressGenerate()">
+<br>
+<textarea id="stats" cols="60" rows="5">Statistics</textarea>
+<br>
+<input type=checkbox id=decomposeCheckBox onclick="pressDecompose()">Decompose to Clifford+T</input>
+<br>
+<input type=checkbox id=reorderwires onclick="pressGenerate()">Reorder wires based on first usage</input>
+<br>
+<input type=checkbox id=delaygates onclick="pressTDelay()">Delay T gates for available distillations</input>
+<br>
+<input type=checkbox id=onetpertime disabled onclick="pressGenerate()">One T gate per time step</input>
+<br>
+<input type=checkbox id=novisual onclick="pressGenerate()">No visualisation (faster)</input>
+<!--<br>
+Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textbox)</a>
+-->
+<br>
+
+    <!-- Tab links -->
+    <div class="tab">
+        <button id="defaultOpen" class="tablinks" onclick="openTab(event, 'Raw')">Raw Circ.</button>
+        <button class="tablinks" onclick="openTab(event, 'Sched')">Sched. Circ.</button>
+        <button class="tablinks" onclick="openTab(event, 'Link')">Link</button>
+        <button class="tablinks" onclick="openTab(event, 'Memory')">Memory</button>
+        <button class="tablinks" onclick="openTab(event, 'Chart')">Chart</button>
+    </div>
+
+    <!-- Tab content -->
+    <div id="Raw" class="tabcontent">
+        <textarea id="circuit" cols="60" rows="20" readonly>nothing generated
+        </textarea>
+    </div>
+
+    <div id="Sched" class="tabcontent">
+        <input id="gateslider" value="0" size="3" type="number" onchange="selectGate()"><br>
+        <textarea id="circuitnew" cols="60" rows="20" readonly>nothing generated
+        </textarea>
+    </div>
+
+    <div id="Link" class="tabcontent">
+        Copy and paste link from Quirk to parse circuit<br>
+        <textarea id="quirkLink" cols="60" rows="20">nothing copied&pasted
+        </textarea>
+        <br>
+        <input id=btnParse type=button value="Parse" onclick="parseLink()">
+        <input id=btnGIF type=button value="Get From Frame" onclick="getLinkFromIFrame()">
+        <input id=btnSave type=button value="Save To Memory" onclick="saveToMemory()">
+    </div>
+
+    <div id="Memory" class="tabcontent">
+        Saved Quirk Links:<br>
+        <input type="button" value="Get and Save To Memory" onclick="getLinkFromIFrame(); saveToMemory()"><br>
+    </div>
+
+    <div id="Chart" class="tabcontent">
+        Look ahead:<input type="number" id="lookahead" min=0 onchange="pressGenerate()" value="0">
+        <br>
+        <canvas id="analysisChart" width="200" height="100"></canvas>
+    </div>
+</div>
+<script>
+    function pressDecompose()
+    {
+        document.getElementById('btnParse').disabled = !document.getElementById('decomposeCheckBox').checked;
+        pressGenerate();
+    }
+
+    function pressTDelay()
+    {
+        document.getElementById('onetpertime').disabled = !document.getElementById('delaygates').checked;
+        if(document.getElementById('onetpertime').disabled)
+            document.getElementById('onetpertime').checked = false;
+        pressGenerate();
+    }
+</script>
+
+<div id="contentframe" style="position:relative; top: 0px; left: 0px; float:right; width:60%">
+<iframe id="quirkiframe" src="http://algassert.com/quirk#" style="width:153%; height:153%;">
+</iframe>
+</div>
+
+<script>
+    pressGenerate();
+    document.getElementById("defaultOpen").click();
+</script>
+
+</body>
+
+</html>
