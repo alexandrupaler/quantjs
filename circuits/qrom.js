@@ -40,6 +40,7 @@ function generateQROMCircuit()
         var binaryRep = binary(gateIndex, toolParameters.nrLogQubits);
         echo ("#------ " + binaryRep);
 
+
         //CNOT //primul 1 // target pe index, si control pe index - 1
         var idx = firstRightToLeftWithValue(1, binaryRep);
         if(idx != -1)
@@ -51,10 +52,11 @@ function generateQROMCircuit()
 
                 var delayCX = 0;
                 if(toolParameters.decomposeCliffordT && idx > 0)
-                    delayCX = 0;
+                    delayCX = -1;
                 placeCX(repIndices[idx + 1], [repIndices[idx]], delayCX);
             }
         }
+
 
         //K gates // pana la primul 1
         var kLocs = allRightToLeftWithValue(0, binaryRep);
@@ -70,7 +72,11 @@ function generateQROMCircuit()
             var kt = repIndices[nkIndex];
 
             var whichDecomposition = toolParameters.decomposeCliffordT ? 1 : 0;
-            placeK(ka, kb, kt, whichDecomposition, -1/*delay*/);
+
+            var localDelay = -1;
+            if(gateIndex == 0 && ka == 0)
+                localDelay = 0;
+            placeK(ka, kb, kt, whichDecomposition, localDelay);
         }
 
         //new circuit - place CX
@@ -79,9 +85,8 @@ function generateQROMCircuit()
 
         var cxtargets2 = [];
         var cxcontrol = repIndices[0];
-        for(var cxi = gateIndex; cxi < toolParameters.nrQubits; cxi++)
+        for(var cxi = 0; cxi < toolParameters.nrQubits; cxi++)
             cxtargets2.push(qubIndices[cxi]);
-        placeGate("h", [ qubIndices[gateIndex] ], -1);
         placeCX(cxcontrol, cxtargets2);
 
         //U gates // pana la primul 0

@@ -90,9 +90,11 @@ function pressGenerate()
 
     chartAnalysisData(
         analysisData.steps,
-        aStatesData.nra.slice(0, distillationDepth + 1),
+        aStatesData.nra,//.slice(0, distillationDepth + 1),
         analysisData.counts
     );
+
+    console.log("here "  + distillationDepth + "  " + analysisData.steps.length);
 }
 
 function echo(msg, elementId)
@@ -296,15 +298,15 @@ function writeFileHeader(nrvars, where)
 </head>
 
 <body>
-<div style="width:40%; float:left">
+<div style="width:40vw; height:100vh; float:left;">
     <select id="circuitgenerator" onchange="pressGenerate()">
-        <option value="chemistry">Majorana</option>
+        <option value="majorana">Majorana</option>
         <option value="qrom">QROM</option>
         <!--<option value="chemistry2">Chemistry2</option>-->
         <option value="adder">Adder</option>
     </select>
 
-    Nr Log Qubits (log_2 N): <input id="nrq" value="2" size="3" type="number" onchange="pressGenerate()">
+    Nr Log Qubits (log_2 N): <input id="nrq" value="2" size="3" type="number" min=2 onchange="pressGenerate()">
 <br>
 <textarea id="stats" cols="60" rows="5">Statistics</textarea>
 <br>
@@ -312,7 +314,7 @@ function writeFileHeader(nrvars, where)
 <br>
 <input type=checkbox id=reorderwires onclick="pressGenerate()">Reorder wires based on first usage</input>
 <br>
-<input type=checkbox id=delaygates onclick="pressTDelay()">Delay T gates for available distillations</input>
+<input type=checkbox id=delaygates onclick="pressTDelay()">Delay T gates and consume available T states</input>
 <br>
 <input type=checkbox id=onetpertime disabled onclick="pressGenerate()">One T gate per time step</input>
 <br>
@@ -380,9 +382,11 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
     }
 </script>
 
-<div id="contentframe" style="position:relative; top: 0px; left: 0px; float:right; width:60%">
-<iframe id="quirkiframe" src="http://algassert.com/quirk#" style="width:153%; height:153%;">
-</iframe>
+<div id="contentframe" style="position:relative; top: 0px; left: 0px; float:right; width:57vw;height:100vh">
+    <iframe id="quirkiframe" src="#" style="width:153%;height:153%;">
+        <!-- the css scales to 0.65 the contents of the iframe,
+        and this style is applied afterwards to set the width to 1/0.65 -->
+    </iframe>
 </div>
 
 <script>

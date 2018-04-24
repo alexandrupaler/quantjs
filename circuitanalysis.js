@@ -32,7 +32,7 @@ function chartAnalysisData(steps, nra, analysis)
                     lineTension: 0
                 },
                 {
-                    label: 'Lookahead',
+                    label: 'Lookahead # A states',
                     backgroundColor: 'rgb(99, 255, 132)',
                     borderColor: 'rgb(99, 255, 132)',
                     data: analysis,
@@ -45,7 +45,8 @@ function chartAnalysisData(steps, nra, analysis)
             scales: {
                 yAxes: [{
                     ticks: {
-                        beginAtZero:true
+                        beginAtZero:true,
+                        integerSteps: true
                     }
                 }]
             }
@@ -69,12 +70,12 @@ function analyseCircuit(schedGateList, windowLength)
         //continuous update
         analysisData.timesteps = Math.max(analysisData.timesteps, parsedGate.timeStep + 1);
 
+        while(parsedGate.timeStep >= accumulator.length)
+            accumulator.push(0);
+
         if(parsedGate.gateType[0] == 't' || parsedGate.gateType[0] == 'a')
         {
             analysisData.nrTGates += parsedGate.wires.length;
-
-            while(parsedGate.timeStep >= accumulator.length)
-                accumulator.push(0);
 
             accumulator[parsedGate.timeStep] += parsedGate.wires.length;
         }
@@ -94,6 +95,8 @@ function analyseCircuit(schedGateList, windowLength)
         }
     }
 
+    console.log("xx1 " + analysisData.steps.length);
+
     while(countAtWindowStart.length > 0)
     {
         analysisData["steps"].push(analysisData["counts"].length);
@@ -101,4 +104,7 @@ function analyseCircuit(schedGateList, windowLength)
         analysisData["counts"].push(total);
         countAtWindowStart.shift();
     }
+
+    console.log("xx2 " + analysisData.steps.length);
+
 }

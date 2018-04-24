@@ -215,6 +215,7 @@ function generateMajoranaCircuit()
             var kt = repIndices[nkIndex];
 
             var whichDecomposition = toolParameters.decomposeCliffordT ? 1 : 0;
+
             placeK(ka, kb, kt, whichDecomposition, -1/*delay*/);
         }
 
