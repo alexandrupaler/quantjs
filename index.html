@@ -13,6 +13,7 @@
     <script src="circuits/tgatesprocess.js"></script>
     <script src="circuits/chemcircuit.js"></script>
     <script src="circuits/addercircuit.js"></script>
+    <script src="circuits/qrom.js"></script>
 
     <script src="tabs.js"></script>
     <script src="astateconsume.js"></script>
@@ -32,11 +33,15 @@ function pressGenerate()
 
     switch(toolParameters.circuitGenerator)
     {
-        case "chemistry":
-            generateChemCircuit();
+        case "majorana":
+            generateMajoranaCircuit();
             break;
-        case "chemistry2":
+        /*case "chemistry2":
             generateChemCircuitNewUncompute();
+            break;
+            */
+        case "qrom":
+            generateQROMCircuit();
             break;
         case "adder":
             generateAdderCircuit();
@@ -293,8 +298,9 @@ function writeFileHeader(nrvars, where)
 <body>
 <div style="width:40%; float:left">
     <select id="circuitgenerator" onchange="pressGenerate()">
-        <option value="chemistry">Chemistry</option>
-        <option value="chemistry2">Chemistry2</option>
+        <option value="chemistry">Majorana</option>
+        <option value="qrom">QROM</option>
+        <!--<option value="chemistry2">Chemistry2</option>-->
         <option value="adder">Adder</option>
     </select>
 

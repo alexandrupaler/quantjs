@@ -34,8 +34,8 @@ function readToolParameters()
     toolParameters.nrLogQubits = Number(document.getElementById("nrq").value);
     toolParameters.lookAhead = Number(document.getElementById("lookahead").value);
 
-    if(toolParameters.circuitGenerator == "chemistry"
-        || toolParameters.circuitGenerator == "chemistry2")
+    if(toolParameters.circuitGenerator == "majorana"
+        || toolParameters.circuitGenerator == "qrom")
     {
         toolParameters.nrQubits = Math.pow(2, toolParameters.nrLogQubits);
         toolParameters.nrVars = toolParameters.nrQubits + 2 * toolParameters.nrLogQubits + 1 /*control*/;

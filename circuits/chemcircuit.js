@@ -132,7 +132,7 @@ function generateChemCircuitNewUncompute()
     }
 }
 
-function generateChemCircuit()
+function generateMajoranaCircuit()
 {
     //empty previous existing gate list
     gateList = [];
