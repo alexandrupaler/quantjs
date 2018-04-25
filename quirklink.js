@@ -410,13 +410,29 @@ function setLink(event)
 {
     document.getElementById("quirkiframe").contentWindow.location.href = decodeURIComponent(event.currentTarget.href);
 
+    /*
+        I tried everything to cancel event handling
+     */
+    event.preventDefault();
+    event.returnValue = false;
     return false;
 }
+
+function deleteFromMemory(id)
+{
+    var elem = document.getElementById(id);
+    elem.parentNode.removeChild(elem);
+}
+
 
 function saveToMemory()
 {
     var link = document.getElementById("quirkLink").value;
-    var msg = "<a onclick=\"setLink(event)\" href=\"" + encodeURIComponent(link) + "\">" + Date.now() + "</a><br>";
+    var linkid = "saved" + Date.now();
+    var msg = "<div id=\"" +  linkid+ "\">";
+    msg += "<a onclick=\"setLink(event)\" href=\"" + encodeURIComponent(link) + "\">" + linkid + "</a>";
+    msg += "<span onclick=deleteFromMemory(\"" + linkid + "\") style=\"cursor:pointer\">[X]</span>";
+    msg += "</div>";
 
     document.getElementById("Memory").innerHTML += msg;
 }
