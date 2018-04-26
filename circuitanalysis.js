@@ -66,6 +66,8 @@ function analyseCircuit(schedGateList, windowLength)
     for(var i=0; i<schedGateList.length; i++)
     {
         var parsedGate = parseScheduledGateString(schedGateList[i]);
+        if(parsedGate.isComment)
+            continue;
 
         //continuous update
         analysisData.timesteps = Math.max(analysisData.timesteps, parsedGate.timeStep + 1);

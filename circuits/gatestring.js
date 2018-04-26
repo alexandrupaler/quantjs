@@ -28,6 +28,7 @@ function parseScheduledGateString(gate)
     {
         ret["wires"].push(Number(commandSplits[i]));
     }
+    ret.isComment = (commandSplits[0][0] == '%');
 
     return ret;
 }

@@ -54,7 +54,11 @@ function scheduleGateList(nGateList)
 
         timeStep += parsedGate.deltaTime;
 
-        updateAvailableDistilledStates(timeStep);
+        var stopDistillations = updateAvailableDistilledStates(timeStep);
+        if(stopDistillations)
+        {
+            newCommands.push("%" + timeStep + "@distoff");
+        }
 
         if(parsedGate.gateType[0] == 'K' || parsedGate.gateType[0] == 'U')
         {
@@ -107,11 +111,20 @@ function scheduleGateList(nGateList)
                 var howmany = parsedGate.wires.length - fromWhere;
                 for(var hi = 0; hi < howmany; hi++)
                 {
-                    while (!checkAvailableDistilledState()) {
+                    /*
+                        At this point distilled states are added and consumed one at a time
+                        So, I assume it is not possible to fill the buffer
+                     */
+                    while (!checkAvailableDistilledState())
+                    {
                         timeStep++;
                         updateAvailableDistilledStates(timeStep);
                     }
-                    consumeDistilledState();
+                    var proceedWithDistillation = consumeDistilledState();
+                    if(proceedWithDistillation)
+                    {
+                        newCommands.push("%" + timeStep + "@diston");
+                    }
                 }
             }
 
@@ -148,6 +161,9 @@ function constructQuirkLink(nGateList)
     for (var i = 0; i < nGateList.length; i++)
     {
         var parsedGate = parseScheduledGateString(nGateList[i]);
+
+        if(parsedGate.isComment)
+            continue;
 
         if(!toolParameters.noVisualisation)
             checkCircuitLengthAndCorrect(circuit, parsedGate.timeStep);
