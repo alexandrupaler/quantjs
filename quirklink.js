@@ -34,131 +34,164 @@ function checkCircuitLengthAndCorrect(circuit, required)
     }
 }
 
-function scheduleGateList(nGateList)
+function arrangeDecomposedCircuit(nGateList)
 {
     computeFirstWireUsage(nGateList);
-
-    resetAvailableDistilledState();
 
     var timeStep = -1;
     var newCommands = new Array();//used for sched circ. one gate per line in file
 
-    for (var i = 0; i < nGateList.length - 3; i++)
+    //skip the first three lines
+    //because they are nrVars, inputs and outputs
+    newCommands.push(nGateList[0]);
+    newCommands.push(nGateList[1]);
+    newCommands.push(nGateList[2]);
+
+    for (var i = 3; i < nGateList.length; i++)
     {
         timeStep++;
 
-        //skip the first three lines
-        //because they are nrVars, inputs and outputs
-
-        var parsedGate = parseUnscheduledGateString(nGateList[i + 3]);
+        var parsedGate = parseUnscheduledGateString(nGateList[i]);
 
         timeStep += parsedGate.deltaTime;
 
-        var stopDistillations = updateAvailableDistilledStates(timeStep);
-        if(stopDistillations)
+        var scheduledGate = constructEmptyScheduledGate();
+        scheduledGate.timeStep = timeStep;
+        scheduledGate.gateType = parsedGate.gateType[0];
+
+        for(var j=0; j<parsedGate.wires.length; j++)
         {
-            newCommands.push("%" + timeStep + "@distoff");
+            scheduledGate.wires.push(Number(parsedGate.wires[j]));
         }
 
-        if(parsedGate.gateType[0] == 'K' || parsedGate.gateType[0] == 'U')
-        {
-            var a1 = getWireNumber(Number(parsedGate.wires[0]));
-            var b1 = getWireNumber(Number(parsedGate.wires[1]));
-            var ab1 = getWireNumber(Number(parsedGate.wires[2]));
+        switch (parsedGate.gateType[0]) {
+            case "c":
+                scheduledGate.gateType = "c";
+                break;
+            case "p":
+                break;
+            case "h":
+                break;
+            case "t":
+                break;
+            case "v":
+                break;
+            case "i"/*"ix"*/:
+                scheduledGate.gateType = "a";
+                break;
+            case "m"/*"mx"*/:
+                scheduledGate.gateType = "m";
+                break;
+            case "K":
+                break;
+            case "U":
+                break;
+        }
 
-            var newCommand = parsedGate.gateType[0] + " " + a1 + " " + b1 + " " + ab1;
-            newCommands.push(timeStep + "@" + newCommand);
+        newCommands.push(toStringScheduledGate(scheduledGate));
+    }
+
+    return newCommands;
+}
+
+function scheduleGateList(nGateList, nrTGates)
+{
+    resetAvailableDistilledState();
+    maxNrAToGenerate = nrTGates;
+    console.log(nrTGates);
+
+    var newCommands = new Array();//used for sched circ. one gate per line in file
+    newCommands.push(nGateList[0]);
+    newCommands.push(nGateList[1]);
+    newCommands.push(nGateList[2]);
+
+    var accumulatedTimeStepIncrement = 0;
+
+    for (var i = 3; i < nGateList.length; i++)
+    {
+        //skip the first three lines
+        //because they are nrVars, inputs and outputs
+
+        var parsedGate = parseScheduledGateString(nGateList[i]);
+
+        var timeStep = parsedGate.timeStep;
+        var distillationResult = DistillationResult.WORKING;
+        var consumeResult = DistillationResult.DONTCARE;
+
+        distillationResult = updateAvailableDistilledStates(timeStep + accumulatedTimeStepIncrement);
+        /*
+            AppendChartData is performed after a potential consume
+         */
+        if((parsedGate.gateType[0] == 't' || parsedGate.gateType[0] == 'a'))
+        {
+            //can I consume?
+            var howmany = parsedGate.wires.length;
+            for(var hi = 0; hi < howmany; hi++)
+            {
+                var ntimeStep = timeStep + accumulatedTimeStepIncrement;
+
+                while (!checkAvailableDistilledState()) {
+
+                    appendChartData(ntimeStep, distillationResult);
+
+                    accumulatedTimeStepIncrement++;
+                    ntimeStep = timeStep + accumulatedTimeStepIncrement;
+
+                    distillationResult = updateAvailableDistilledStates(ntimeStep);
+                }
+
+                // a consume takes always? the distillation factory in the working/distilled state
+                //I can consume
+                consumeResult = consumeDistilledState(ntimeStep);
+                if(distillationResult == DistillationResult.STOPNOW)
+                    appendChartData(ntimeStep, DistillationResult.DISTILLED);
+                /*else if (distillationResult == DistillationResult.STOPPED)
+                    appendChartData(ntimeStep, DistillationResult.WORKING);
+                */else
+                    appendChartData(ntimeStep, distillationResult);
+            }
         }
         else
         {
-            var newCommandBegin = "" + parsedGate.gateType[0];
+            appendChartData(timeStep + accumulatedTimeStepIncrement, distillationResult);
+        }
 
-            var fromWhere = 0;
-            switch (parsedGate.gateType[0]) {
-                case "c":
-                    var ctr = getWireNumber(Number(parsedGate.wires[0]));
-                    fromWhere = 1;
-
-                    newCommandBegin = "c " + ctr;
-                    newCommands.push(timeStep + "@" + newCommandBegin);
-                    break;
-                case "p":
-                    break;
-                case "h":
-                    break;
-                case "t":
-                    //returnObj.nrTGates += commandSplits.length - 1;
-                    // returnObj.nrTGates += parsedGate.wires.length;
-                    break;
-                case "v":
-                    break;
-                case "i"/*"ix"*/:
-                    newCommandBegin = "a";
-                    // returnObj.nrTGates++;
-                    break;
-                case "m"/*"mx"*/:
-                    newCommandBegin = "m";
-                    break;
-            }
-            /*
-             * The problem is if T gates and A initialisations can be placed
-             * This depends on the availability of distilled A states
-             */
-
-            if(toolParameters.delayTGates
-                && (parsedGate.gateType[0] == 't' || parsedGate.gateType[0] == 'i'))
+        /*
+            This is related to what to write in the gate list
+         */
+        if(consumeResult == DistillationResult.STARTNOW)
+        {
+            if(distillationResult != DistillationResult.STOPNOW)
             {
-                var howmany = parsedGate.wires.length - fromWhere;
-                for(var hi = 0; hi < howmany; hi++)
-                {
-                    /*
-                        At this point distilled states are added and consumed one at a time
-                        So, I assume it is not possible to fill the buffer
-                     */
-                    while (!checkAvailableDistilledState())
-                    {
-                        timeStep++;
-                        updateAvailableDistilledStates(timeStep);
-                    }
-                    var proceedWithDistillation = consumeDistilledState();
-                    if(proceedWithDistillation)
-                    {
-                        newCommands.push("%" + timeStep + "@diston");
-                    }
-                }
-            }
-
-            for(var kk = fromWhere; kk < parsedGate.wires.length; kk++)
-            {
-                var tgt = getWireNumber(Number(parsedGate.wires[kk]));
-
-                if(parsedGate.gateType[0] == 'c')
-                {
-                    //this gate is allowed multiple targets
-                    newCommands[newCommands.length - 1] += " " + tgt;
-                }
-                else
-                {
-                    //single qubit gates are one per line
-                    var newCommand = newCommandBegin + " " + tgt;
-                    newCommands.push(timeStep + "@" + newCommand);
-                }
+                newCommands.push("%" + timeStep + "@diston");
             }
         }
+        else
+        {
+            if(distillationResult = DistillationResult.STOPNOW)
+            {
+                newCommands.push("%" + timeStep + "@distoff");
+            }
+        }
+
+        //update the timestep of this gate
+        parsedGate.timeStep += accumulatedTimeStepIncrement;
+        newCommands.push(toStringScheduledGate(parsedGate));
     }
 
     return newCommands;
 }
 
 
-function constructQuirkLink(nGateList)
+function constructQuirkLink(nGateList, analysisData)
 {
     var returnObj = [];
     returnObj.link = quirkLink;
 
     var circuit = new Array();
 
-    for (var i = 0; i < nGateList.length; i++)
+    //first three are file header
+    for (var i = 3; i < nGateList.length; i++)
     {
         var parsedGate = parseScheduledGateString(nGateList[i]);
 
@@ -227,8 +260,10 @@ function constructQuirkLink(nGateList)
 
     if(!toolParameters.noVisualisation)
     {
-        if(toolParameters.decomposeCliffordT)
-            insertDistillationSpacers(circuit, toolParameters.distillationLength, analysisData.nrTGates);
+        if(toolParameters.decomposeCliffordT && toolParameters.distillAndConsumeTStates)
+            insertDistillationSpacers(circuit,
+                toolParameters.distillationLength,
+                analysisData.nrTGates);
         cleanUselessOnes(circuit);
         returnObj.link += "circuit={\"cols\":" + JSON.stringify(circuit) + otherGatesJSON + "}";
     }
@@ -261,31 +296,26 @@ function cleanUselessOnes(circuit)
 
 function insertDistillationSpacers(circuit, distance, nrTGates)
 {
-    /*
-     Insert \ldots where distillations are placed and a 0 where two distillations are separated
-     */
-    var next = -1;
-    for(var ti = 0; ti < nrTGates; ti++)
+    for(var i=0; i<aStatesData.separators.length; i++)
     {
-        for(var i = 1; i <= distance; i++)
+        var insert = "";//distill
+        switch(aStatesData.separators[i])
         {
-            var insert = "\u2026";
-            if(i % distance == 0)
+            case DistillationResult.WORKING:
+                insert = "\u2026";
+                break;
+            case DistillationResult.DISTILLED:
+            case DistillationResult.STOPNOW:
                 insert = "0";
-
-            next++;
-
-            if(next == circuit.length)
-            {
-                //too much
-                return;
-            }
-
-            circuit[next].splice(0, 0, insert);
+                break;
+            case DistillationResult.STOPPED:
+                insert = "NeGate";
+                break;
         }
-    }
 
-    for(var i = next + 1; i < circuit.length; i++)
+        circuit[i].splice(0, 0, insert);
+    }
+    for(var i = aStatesData.separators.length; i < circuit.length; i++)
     {
         circuit[i].splice(0, 0, 1);
     }

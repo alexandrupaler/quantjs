@@ -32,6 +32,9 @@ function pressGenerate()
 {
     readToolParameters();
 
+    echo(undefined, "stats");
+    echo("computing...", "stats");
+
     switch(toolParameters.circuitGenerator)
     {
         case "majorana":
@@ -50,12 +53,28 @@ function pressGenerate()
     }
 
     //mai exista un resetdata in astatesconsume
-    resetAnalysisData();
-    var ngatelist = oneTGatePerTimeStep(gateList);
-    var schedlist = scheduleGateList(ngatelist);
+    //resetAnalysisData();
+    var ngatelist = [];
+    if(toolParameters.oneTGatePerTimestep)
+    {
+        ngatelist = oneTGatePerTimeStep(gateList);
+    }
+    else
+    {
+        ngatelist = gateList;
+    }
+    var schedlist = arrangeDecomposedCircuit(ngatelist);
+
+    if(toolParameters.distillAndConsumeTStates)
+    {
+        // make a first analysis to know how many T states need to be distilled
+        var nrTGates = analyseCircuit(schedlist, 0/*no look ahead*/).nrTGates;
+        schedlist = scheduleGateList(schedlist, nrTGates);
+    }
 
     //unrolled the single qubit gates
-    writeFileHeader(toolParameters.nrVars, "circuitnew");
+    //writeFileHeader(toolParameters.nrVars, "circuitnew");
+    echo(undefined, "circuitnew");
     for(var y=0; y<schedlist.length; y++)
     {
         echo(schedlist[y], "circuitnew");
@@ -64,9 +83,9 @@ function pressGenerate()
     /*
      analyse the circuit and plot the data resulting from the analysis
      */
-    analyseCircuit(schedlist, toolParameters.lookAhead);
+    var analysisData = analyseCircuit(schedlist, toolParameters.lookAhead);
 
-    var obj = constructQuirkLink(schedlist);
+    var obj = constructQuirkLink(schedlist, analysisData);
 
     echo(undefined, "quirkLink");
     echo(obj.link, "quirkLink");
@@ -83,6 +102,9 @@ function pressGenerate()
     echo("single distillation depth " + toolParameters.distillationLength, "stats");
     echo("total T distillations depth " + distillationDepth, "stats");
 
+    if(toolParameters.distillAndConsumeTStates)
+        estimateBoundingBox(analysisData, aStatesData);
+
     document.getElementById("gateslider").min = 1;
     document.getElementById("gateslider").max = gateList.length - 3;
     document.getElementById("gateslider").value = 1;
@@ -92,8 +114,21 @@ function pressGenerate()
         aStatesData.nra,//.slice(0, distillationDepth + 1),
         analysisData.counts
     );
+}
 
-    console.log("here "  + distillationDepth + "  " + analysisData.steps.length);
+function estimateBoundingBox(analysisData, aStatesData)
+{
+    var mostAvailableDistilledAStates = aStatesData.nra.reduce(function(a, b) {
+        return Math.max(a, b);
+    });
+
+    echo("\nEstimated bounding box (plumbing pieces):", "stats");
+    echo("depth: " + analysisData.timesteps * 2, "stats");
+    echo("width: " + Math.max(mostAvailableDistilledAStates * 2, 16), "stats");
+
+    var nrQubitLines = Math.ceil(toolParameters.nrVars / 16 ) * 2;
+    var totalHeight = nrQubitLines + 2 + 10;
+    echo("height: " + totalHeight, "stats");
 }
 
 function echo(msg, elementId)
@@ -168,11 +203,13 @@ function writeFileHeader(nrvars, where)
 
     Nr Log Qubits (log_2 N): <input id="nrq" value="2" size="3" type="number" min=2 onchange="pressGenerate()">
 <br>
-<input type=checkbox id=decomposeCheckBox onclick="pressDecompose()">Decompose to Clifford+T</input>
+    Max avail. distilled A: <input id="nrMaxAvailable" value="0" size="3" type="number" min=0 onchange="pressGenerate()">
 <br>
 <input type=checkbox id=reorderwires onclick="pressGenerate()">Reorder wires based on first usage</input>
 <br>
-<input type=checkbox id=delaygates onclick="pressTDelay()">Delay T gates and consume available T states</input>
+<input type=checkbox id=decomposeCheckBox onclick="pressDecompose()">Decompose to Clifford+T</input>
+<br>
+<input type=checkbox id=distillandconsume onclick="pressTDelay()">Distill and consume T states</input>
 <br>
 <input type=checkbox id=onetpertime disabled onclick="pressGenerate()">One T gate per time step</input>
 <br>
@@ -240,7 +277,7 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
 
     function pressTDelay()
     {
-        document.getElementById('onetpertime').disabled = !document.getElementById('delaygates').checked;
+        document.getElementById('onetpertime').disabled = !document.getElementById('distillandconsume').checked;
         if(document.getElementById('onetpertime').disabled)
             document.getElementById('onetpertime').checked = false;
         pressGenerate();
@@ -248,7 +285,7 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
 </script>
 
 <div id="contentframe" style="position:relative; top: 0px; left: 0px; float:right; width:57vw;height:100vh">
-    <iframe id="quirkiframe" src="#" style="width:153%;height:153%;">
+    <iframe id="quirkiframe" src="#" style="width:153%;height:150%;">
         <!-- the css scales to 0.65 the contents of the iframe,
         and this style is applied afterwards to set the width to 1/0.65 -->
     </iframe>

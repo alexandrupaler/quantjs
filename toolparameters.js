@@ -2,7 +2,7 @@ var toolParameters = [];
 
 toolParameters.decomposeCliffordT = false;
 toolParameters.reorderWires = false;
-toolParameters.delayTGates = false;
+toolParameters.distillAndConsumeTStates = false;
 toolParameters.oneTGatePerTimestep = false;
 toolParameters.distillationLength = 3;
 
@@ -27,12 +27,19 @@ function readToolParameters()
 
     toolParameters.decomposeCliffordT = document.getElementById("decomposeCheckBox").checked;
     toolParameters.reorderWires = document.getElementById("reorderwires").checked;
-    toolParameters.delayTGates = document.getElementById("delaygates").checked;
+    toolParameters.distillAndConsumeTStates = document.getElementById("distillandconsume").checked;
     toolParameters.oneTGatePerTimestep = document.getElementById("onetpertime").checked;
     toolParameters.noVisualisation = document.getElementById("novisual").checked;
 
     toolParameters.nrLogQubits = Number(document.getElementById("nrq").value);
     toolParameters.lookAhead = Number(document.getElementById("lookahead").value);
+
+    toolParameters.maximumAAvailable = Number(document.getElementById("nrMaxAvailable").value);
+    if(toolParameters.maximumAAvailable == 0)
+    {
+        // disable the limitation
+        toolParameters.maximumAAvailable = -1;
+    }
 
     if(toolParameters.circuitGenerator == "majorana"
         || toolParameters.circuitGenerator == "qrom")

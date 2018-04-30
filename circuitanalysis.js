@@ -1,20 +1,19 @@
 var analysisChart = null;
-var analysisData = {};
 
-
-function resetAnalysisData()
+function resetAnalysisData(analysisData)
 {
     analysisData["steps"] = [];
     analysisData["counts"] = [];
     analysisData.nrTGates = 0;
     analysisData.timesteps = 0;
-
-    if(analysisChart != null)
-        analysisChart.destroy();
 }
 
 function chartAnalysisData(steps, nra, analysis)
 {
+    if(analysisChart != null) {
+        analysisChart.destroy();
+    }
+
     var ctx = document.getElementById("analysisChart").getContext('2d');
 
     analysisChart = new Chart(ctx, {
@@ -60,10 +59,13 @@ function chartAnalysisData(steps, nra, analysis)
  */
 function analyseCircuit(schedGateList, windowLength)
 {
-    resetAnalysisData();
+    var analysisData = {};
+
+    resetAnalysisData(analysisData);
 
     var accumulator = new Array();
-    for(var i=0; i<schedGateList.length; i++)
+    //first three are file header
+    for(var i=3; i<schedGateList.length; i++)
     {
         var parsedGate = parseScheduledGateString(schedGateList[i]);
         if(parsedGate.isComment)
@@ -97,8 +99,6 @@ function analyseCircuit(schedGateList, windowLength)
         }
     }
 
-    console.log("xx1 " + analysisData.steps.length);
-
     while(countAtWindowStart.length > 0)
     {
         analysisData["steps"].push(analysisData["counts"].length);
@@ -107,6 +107,5 @@ function analyseCircuit(schedGateList, windowLength)
         countAtWindowStart.shift();
     }
 
-    console.log("xx2 " + analysisData.steps.length);
-
+    return analysisData;
 }
