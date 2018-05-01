@@ -118,17 +118,39 @@ function pressGenerate()
 
 function estimateBoundingBox(analysisData, aStatesData)
 {
+    var distillationHeight = 10;
+    var distillationDepth = 6;
+    var distillationWidth = 16;
+
     var mostAvailableDistilledAStates = aStatesData.nra.reduce(function(a, b) {
         return Math.max(a, b);
     });
 
     echo("\nEstimated bounding box (plumbing pieces):", "stats");
-    echo("depth: " + analysisData.timesteps * 2, "stats");
-    echo("width: " + Math.max(mostAvailableDistilledAStates * 2, 16), "stats");
+    var totalDepth = analysisData.timesteps * 2;
+    echo("depth: " + totalDepth, "stats");
 
-    var nrQubitLines = Math.ceil(toolParameters.nrVars / 16 ) * 2;
-    var totalHeight = nrQubitLines + 2 + 10;
-    echo("height: " + totalHeight, "stats");
+    var totalWidth = Math.max(mostAvailableDistilledAStates * 2 + 1/*connection around the log qubit block*/,
+        distillationWidth);
+    echo("width: " + totalWidth, "stats");
+
+    var nrLogQubitsPerLine = Math.floor(distillationWidth / 2);
+    nrLogQubitsPerLine--;//take one out because some connections use a plumbing piece
+
+    var nrQubitLines = Math.ceil(toolParameters.nrVars / nrLogQubitsPerLine );
+    var totalHeight = nrQubitLines + 2 + distillationHeight;
+    echo("height: (" + nrQubitLines + ") "+ totalHeight, "stats");
+
+    var volume = totalHeight * totalWidth * totalDepth;
+    echo("volume: " + volume, "stats");
+
+    var difference = analysisData.timesteps - analysisData.nrTGates * toolParameters.distillationLength;
+    var unusedDistillationBlock = 2 * difference * distillationWidth * distillationHeight;
+    unusedDistillationBlock += analysisData.nrTGates * distillationWidth * distillationHeight;
+
+    echo("unused distillation volume: " + unusedDistillationBlock, "stats");
+
+    echo("estimated used plumbing pieces: " + (volume - unusedDistillationBlock), "stats");
 }
 
 function echo(msg, elementId)
