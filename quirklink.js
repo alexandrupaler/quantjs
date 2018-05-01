@@ -107,18 +107,41 @@ function scheduleGateList(nGateList, nrTGates)
 
     var accumulatedTimeStepIncrement = 0;
 
+    //skip the first three lines
+    //because they are nrVars, inputs and outputs
+    var prevTimeStep = -1;
+    var distillationResult = DistillationResult.WORKING;
+    var consumeResult = DistillationResult.DONTCARE;
+
     for (var i = 3; i < nGateList.length; i++)
     {
-        //skip the first three lines
-        //because they are nrVars, inputs and outputs
-
         var parsedGate = parseScheduledGateString(nGateList[i]);
 
         var timeStep = parsedGate.timeStep;
-        var distillationResult = DistillationResult.WORKING;
-        var consumeResult = DistillationResult.DONTCARE;
+        var ntimeStep = timeStep + accumulatedTimeStepIncrement;
 
-        distillationResult = updateAvailableDistilledStates(timeStep + accumulatedTimeStepIncrement);
+        /*
+         This is related to what to write in the gate list
+         */
+        if(prevTimeStep != ntimeStep)
+        {
+            if (consumeResult == DistillationResult.STARTNOW) {
+                if (distillationResult != DistillationResult.STOPNOW) {
+                    newCommands.push("%" + prevTimeStep + "@diston");
+                }
+            }
+            else
+            {
+                if (distillationResult == DistillationResult.STOPNOW) {
+                    newCommands.push("%" + prevTimeStep + "@distoff");
+                }
+            }
+
+            distillationResult = DistillationResult.WORKING;
+            consumeResult = DistillationResult.DONTCARE;
+        }
+
+        distillationResult = updateAvailableDistilledStates(ntimeStep);
         /*
             AppendChartData is performed after a potential consume
          */
@@ -128,54 +151,22 @@ function scheduleGateList(nGateList, nrTGates)
             var howmany = parsedGate.wires.length;
             for(var hi = 0; hi < howmany; hi++)
             {
-                var ntimeStep = timeStep + accumulatedTimeStepIncrement;
-
-                while (!checkAvailableDistilledState()) {
-
-                    appendChartData(ntimeStep, distillationResult);
-
+                while (!checkAvailableDistilledState())
+                {
                     accumulatedTimeStepIncrement++;
                     ntimeStep = timeStep + accumulatedTimeStepIncrement;
 
                     distillationResult = updateAvailableDistilledStates(ntimeStep);
                 }
 
-                // a consume takes always? the distillation factory in the working/distilled state
-                //I can consume
                 consumeResult = consumeDistilledState(ntimeStep);
-                if(distillationResult == DistillationResult.STOPNOW)
-                    appendChartData(ntimeStep, DistillationResult.DISTILLED);
-                /*else if (distillationResult == DistillationResult.STOPPED)
-                    appendChartData(ntimeStep, DistillationResult.WORKING);
-                */else
-                    appendChartData(ntimeStep, distillationResult);
-            }
-        }
-        else
-        {
-            appendChartData(timeStep + accumulatedTimeStepIncrement, distillationResult);
-        }
-
-        /*
-            This is related to what to write in the gate list
-         */
-        if(consumeResult == DistillationResult.STARTNOW)
-        {
-            if(distillationResult != DistillationResult.STOPNOW)
-            {
-                newCommands.push("%" + timeStep + "@diston");
-            }
-        }
-        else
-        {
-            if(distillationResult = DistillationResult.STOPNOW)
-            {
-                newCommands.push("%" + timeStep + "@distoff");
             }
         }
 
         //update the timestep of this gate
         parsedGate.timeStep += accumulatedTimeStepIncrement;
+        prevTimeStep = parsedGate.timeStep;
+
         newCommands.push(toStringScheduledGate(parsedGate));
     }
 

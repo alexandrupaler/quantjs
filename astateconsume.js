@@ -1,16 +1,3 @@
-/*
- * Methods for availability and consumption of A states
- */
-var availableDistilledAStates = 0;
-var reachedTimeStep = -1;
-
-var aStatesData = {};
-
-var currentlyAGenerated = 0;
-var maxNrAToGenerate = -1;
-
-var lastStartTime = -1;
-
 const DistillationResult = {
     WORKING : "working",
     DISTILLED : "distilled",
@@ -20,9 +7,22 @@ const DistillationResult = {
     DONTCARE : "dontcare"//does not affect the gate list or the display of the distillation activity
 }
 
+/*
+ * Methods for availability and consumption of A states
+ */
+var availableDistilledAStates = 0;
+var reachedTimeStep = -1;
+var aStatesData = {};
+var currentlyAGenerated = 0;
+var maxNrAToGenerate = -1;
+var lastDistillEndTime = -1;
+
+//the current state of the distillery is stored
+var currentState = DistillationResult.WORKING;
+
 function isDistillationTime(timeStep)
 {
-    var ret = ((timeStep - lastStartTime) % toolParameters.distillationLength) == 0;
+    var ret = ((timeStep - lastDistillEndTime) % toolParameters.distillationLength) == 0;
 
     return ret;
 }
@@ -33,38 +33,52 @@ function isDistillationTime(timeStep)
  */
 function updateAvailableDistilledStates(timeStep)
 {
-    if(evaluateCloseDistillery())
-        return DistillationResult.STOPPED;
-
-    if(reachedTimeStep >= timeStep)
-        return DistillationResult.DONTCARE;
-
-    var result = DistillationResult.WORKING;
-    /*
-        this is for a maximum number of distilled states being available
-     */
-    if(! evaluateStopCondition()) {
-
-        //console.log("u A " + timeStep + " " + availableDistilledAStates);
-        if (isDistillationTime(timeStep))
-        {
-            availableDistilledAStates++;
-            currentlyAGenerated++;
-            result = DistillationResult.DISTILLED;
-        }
-    }
-
-    if(evaluateStopCondition())
+    if(reachedTimeStep == timeStep)
     {
-        if(result == DistillationResult.DISTILLED)
-            result = DistillationResult.STOPNOW;
+        //the currentState can be changed potentially only by consume
+        return currentState;
+    }
+    //was <=
+    else if(timeStep < reachedTimeStep)
+    {
+        //cannot go back in time
+        return DistillationResult.DONTCARE;
+    }
+    else if(timeStep > reachedTimeStep)
+    {
+        //store the current state with append
+        if(reachedTimeStep != -1)
+            appendChartData(reachedTimeStep, currentState, false);
+
+        currentState = DistillationResult.WORKING;
+        if(evaluateCloseDistillery())
+        {
+            //distillery is closed forever
+            currentState = DistillationResult.STOPPED;
+        }
         else
-            result = DistillationResult.STOPPED;
+        {
+            if (!evaluateStopCondition())
+            {
+                if (isDistillationTime(timeStep)) {
+                    availableDistilledAStates++;
+                    currentlyAGenerated++;
+                    currentState = DistillationResult.DISTILLED;
+                }
+            }
+
+            if(evaluateStopCondition()) {
+                if (currentState == DistillationResult.DISTILLED)
+                    currentState = DistillationResult.STOPNOW;
+                else
+                    currentState = DistillationResult.STOPPED;
+            }
+        }
+
+        reachedTimeStep = timeStep;
     }
 
-    reachedTimeStep = timeStep;
-
-    return result;
+    return currentState;
 }
 
 /**
@@ -91,9 +105,24 @@ function consumeDistilledState(timeStep)
 {
     var ret = DistillationResult.DONTCARE;
 
-    if(evaluateStopCondition()) {
+    if(currentState == DistillationResult.STOPPED || currentState == DistillationResult.STOPNOW)
+    {
         ret = DistillationResult.STARTNOW;
-        lastStartTime = timeStep;
+        lastDistillEndTime = timeStep;
+
+
+        if(!evaluateCloseDistillery())
+        {
+            if (currentState == DistillationResult.STOPPED) {
+                //can start one step before?
+                lastDistillEndTime--;
+                currentState = DistillationResult.WORKING;
+            }
+
+            if (currentState == DistillationResult.STOPNOW) {
+                currentState = DistillationResult.DISTILLED;
+            }
+        }
     }
 
     availableDistilledAStates--;
@@ -115,7 +144,9 @@ function resetAvailableDistilledState()
     currentlyAGenerated = 0;
     maxNrAToGenerate = -1;
 
-    lastStartTime = -1;
+    lastDistillEndTime = -1;
+
+    currentState = DistillationResult.WORKING;
 
     resetChartData();
 }
@@ -127,12 +158,26 @@ function resetChartData()
     aStatesData.separators = [];
 }
 
-function appendChartData(timeStep, activityState)
+function appendChartData(timeStep, activityState, allowOverwrite)
 {
-    if(aStatesData.steps.indexOf(timeStep) == -1)
+    var existingIndex = aStatesData.steps.indexOf(timeStep);
+
+    //???
+    var writeState = activityState;
+    if(activityState == DistillationResult.STOPNOW)
+        writeState = DistillationResult.DISTILLED;
+
+    if(existingIndex == -1)
     {
         aStatesData.steps.push(timeStep);
         aStatesData.nra.push(availableDistilledAStates);
-        aStatesData.separators.push(activityState);
+        aStatesData.separators.push(writeState);
+    }
+
+    if(existingIndex != -1 && allowOverwrite)
+    {
+        aStatesData.steps[existingIndex] = timeStep;
+        aStatesData.nra[existingIndex] = availableDistilledAStates;
+        aStatesData.separators[existingIndex] = writeState;
     }
 }
