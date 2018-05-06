@@ -1,4 +1,4 @@
-function binary(nr, nrLogQubits)
+function binaryRepresentation(nr, nrLogQubits)
 {
     return Number(nr).toString(2).padStart(nrLogQubits, '0');
 }

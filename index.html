@@ -10,6 +10,7 @@
     <script src="toolparameters.js"></script>
 
     <script src="circuits/placegate.js"></script>
+    <script src="circuits/template.js"></script>
     <script src="circuits/gatestring.js"></script>
     <script src="circuits/tgatesprocess.js"></script>
     <script src="circuits/chemcircuit.js"></script>
@@ -26,7 +27,17 @@
 
 <script>
 
+//TODO: fa sa dispara asta care arata global
 var gateList = new Array();
+
+function otherCircuitSelected()
+{
+    //reset number of qubits
+    //because some circuits exponentiate this number
+    document.getElementById("nrq").value = "2";
+
+    pressGenerate();
+}
 
 function pressGenerate()
 {
@@ -45,7 +56,8 @@ function pressGenerate()
             break;
             */
         case "qrom":
-            generateQROMCircuit();
+//            generateQROMCircuit();
+            generateQROM2Circuit();
             break;
         case "adder":
             generateAdderCircuit();
@@ -216,9 +228,9 @@ function writeFileHeader(nrvars, where)
 
 <body>
 <div style="width:40vw; height:100vh; float:left;">
-    <select id="circuitgenerator" onchange="pressGenerate()">
-        <option value="majorana">Majorana</option>
+    <select id="circuitgenerator" onchange="otherCircuitSelected()">
         <option value="qrom">QROM</option>
+        <option value="majorana">Majorana</option>
         <!--<option value="chemistry2">Chemistry2</option>-->
         <option value="adder">Adder</option>
     </select>

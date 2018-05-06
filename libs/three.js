@@ -9847,7 +9847,7 @@
 				// transform of empty box is an empty box.
 				if( this.isEmpty() ) return this;
 
-				// NOTE: I am using a binary pattern to specify all 2^3 combinations below
+				// NOTE: I am using a binaryRepresentation pattern to specify all 2^3 combinations below
 				points[ 0 ].set( this.min.x, this.min.y, this.min.z ).applyMatrix4( matrix ); // 000
 				points[ 1 ].set( this.min.x, this.min.y, this.max.z ).applyMatrix4( matrix ); // 001
 				points[ 2 ].set( this.min.x, this.max.y, this.min.z ).applyMatrix4( matrix ); // 010
@@ -24669,7 +24669,7 @@
 	/**
 	 * @author Nikos M. / https://github.com/foo123/
 	 *
-	 * Abstract Base class to load generic binary textures formats (rgbe, hdr, ...)
+	 * Abstract Base class to load generic binaryRepresentation textures formats (rgbe, hdr, ...)
 	 */
 
 	var DataTextureLoader = BinaryTextureLoader;
@@ -25574,7 +25574,7 @@
 
 							}
 
-							// prepare binary search on the right side of the index
+							// prepare binaryRepresentation search on the right side of the index
 							right = pp.length;
 							break linear_scan;
 
@@ -25622,7 +25622,7 @@
 
 							}
 
-							// prepare binary search on the left side of the index
+							// prepare binaryRepresentation search on the left side of the index
 							right = i1;
 							i1 = 0;
 							break linear_scan;
@@ -25635,7 +25635,7 @@
 
 					} // linear scan
 
-					// binary search
+					// binaryRepresentation search
 
 					while ( i1 < right ) {
 
@@ -29762,7 +29762,7 @@
 
 			//var time = Date.now();
 
-			// binary search for the index with largest value smaller than target u distance
+			// binaryRepresentation search for the index with largest value smaller than target u distance
 
 			var low = 0, high = il - 1, comparison;
 

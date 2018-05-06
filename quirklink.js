@@ -9,6 +9,7 @@ var otherGatesJSON = ",\"gates\":[{\"id\":\"~fp6j\",\"name\":\"iA\",\"matrix\":\
 var initABasisString = "~fp6j";
 var measXBasisString = "~3mtv";
 var controlString = "\u2022";
+var antiControlString = "\u25E6";
 var tGateString = "Z^\u00BC";
 var pGateString = "Z^\u00BD";
 var vGateString = "X^\u00BD";
@@ -86,6 +87,9 @@ function arrangeDecomposedCircuit(nGateList)
                 break;
             case "U":
                 break;
+            case "C":
+                scheduledGate.gateType = parsedGate.gateType;
+                break;
         }
 
         newCommands.push(toStringScheduledGate(scheduledGate));
@@ -98,7 +102,6 @@ function scheduleGateList(nGateList, nrTGates)
 {
     resetAvailableDistilledState();
     maxNrAToGenerate = nrTGates;
-    console.log(nrTGates);
 
     var newCommands = new Array();//used for sched circ. one gate per line in file
     newCommands.push(nGateList[0]);
@@ -203,6 +206,30 @@ function constructQuirkLink(nGateList, analysisData)
                 circuit[parsedGate.timeStep][a1] = "inputA1";
                 circuit[parsedGate.timeStep][b1] = "inputB1";
                 circuit[parsedGate.timeStep][ab1] = parsedGate.gateType[0] == 'K' ? "+=AB1" : "-=AB1";
+            }
+        }
+        else if(parsedGate.gateType[0] == 'C')
+        {
+            var nsplit = parsedGate.gateType.split("_");
+            var nr1 = Number(nsplit[1]);
+            var nr2 = Number(nsplit[2]);
+
+            console.log(nsplit + " " + nr1 + " " + nr2);
+
+            for(var ci=0; ci<nr1; ci++) {
+                var wire = parsedGate.wires[ci];
+                var qComm = controlString;
+                if(isNegatedWire(wire)) {
+                    qComm = antiControlString;
+                    wire = eliminateWireNegation(wire);
+                }
+                circuit[parsedGate.timeStep][wire] = qComm;//"dec1"
+            }
+
+            //after rep qubits
+            var afterRepQ = nr1 + nr1 - 1;
+            for(var ci=afterRepQ; ci<afterRepQ + nr2; ci++) {
+                circuit[parsedGate.timeStep][getWireNumber(ci)] = "X";
             }
         }
         else

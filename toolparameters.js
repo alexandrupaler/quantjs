@@ -41,11 +41,20 @@ function readToolParameters()
         toolParameters.maximumAAvailable = -1;
     }
 
-    if(toolParameters.circuitGenerator == "majorana"
-        || toolParameters.circuitGenerator == "qrom")
+    if(toolParameters.circuitGenerator == "majorana")
     {
         toolParameters.nrQubits = Math.pow(2, toolParameters.nrLogQubits);
         toolParameters.nrVars = toolParameters.nrQubits + 2 * toolParameters.nrLogQubits + 1 /*control*/;
+    }
+    else if(toolParameters.circuitGenerator == "qrom")
+    {
+        toolParameters.nrQubits = Math.ceil(Math.log2(toolParameters.nrLogQubits));
+        toolParameters.nrVars = 2*toolParameters.nrQubits + toolParameters.nrLogQubits + 1 /*control*/;
+
+
+        // //old version of qrom
+        // toolParameters.nrQubits = Math.pow(2, toolParameters.nrLogQubits);
+        // toolParameters.nrVars = toolParameters.nrQubits + 2 * toolParameters.nrLogQubits + 1 /*control*/;
     }
     else if(toolParameters.circuitGenerator == "adder")
     {

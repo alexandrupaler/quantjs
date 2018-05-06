@@ -63,7 +63,7 @@ function generateChemCircuitNewUncompute()
     for(var gateIndex = 0; gateIndex < toolParameters.nrQubits; gateIndex++)
     {
         //maximum number of C-Y is gateIndex
-        var binaryRep = binary(gateIndex, toolParameters.nrLogQubits);
+        var binaryRep = binaryRepresentation(gateIndex, toolParameters.nrLogQubits);
         echo ("#------ " + binaryRep);
 
         //CNOT //primul 1 // target pe index, si control pe index - 1
@@ -182,7 +182,7 @@ function generateMajoranaCircuit()
     for(var gateIndex = 0; gateIndex < toolParameters.nrQubits; gateIndex++)
     {
         //maximum number of C-Y is gateIndex
-        var binaryRep = binary(gateIndex, toolParameters.nrLogQubits);
+        var binaryRep = binaryRepresentation(gateIndex, toolParameters.nrLogQubits);
         echo ("#------ " + binaryRep);
 
         //CNOT //primul 1 // target pe index, si control pe index - 1
