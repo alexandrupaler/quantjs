@@ -197,9 +197,9 @@ function constructQuirkLink(nGateList, analysisData)
 
         if(parsedGate.gateType[0] == 'K' || parsedGate.gateType[0] == 'U')
         {
-            var a1 = getWireNumber(Number(parsedGate.wires[0]));
-            var b1 = getWireNumber(Number(parsedGate.wires[1]));
-            var ab1 = getWireNumber(Number(parsedGate.wires[2]));
+            var a1 = getWireNumber(Number(eliminateWireNegation(parsedGate.wires[0])));
+            var b1 = getWireNumber(Number(eliminateWireNegation(parsedGate.wires[1])));
+            var ab1 = getWireNumber(Number(eliminateWireNegation(parsedGate.wires[2])));
 
             if(!toolParameters.noVisualisation)
             {
@@ -221,9 +221,9 @@ function constructQuirkLink(nGateList, analysisData)
                 var qComm = controlString;
                 if(isNegatedWire(wire)) {
                     qComm = antiControlString;
-                    wire = eliminateWireNegation(wire);
+                    // wire = eliminateWireNegation(wire);
                 }
-                circuit[parsedGate.timeStep][wire] = qComm;//"dec1"
+                circuit[parsedGate.timeStep][eliminateWireNegation(wire)] = qComm;//"dec1"
             }
 
             //after rep qubits

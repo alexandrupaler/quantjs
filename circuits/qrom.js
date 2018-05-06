@@ -1,15 +1,5 @@
 /**
- * For the moment just a X everywhere
- * @param maxIndex
- * @returns {string}
- */
-function generateMultiQubitGate(maxIndex)
-{
-    return "MQG";
-}
-
-/**
- * Works with strings for the moment
+ * Generate a total control circuit
  * @param maxIndex
  */
 function generateTotalControl(maxIndex /*K*/) {
@@ -143,9 +133,9 @@ function decomposeToKAndU(nGateList)
         for(var j = 0; j < nwires.length; j++)
         {
             var ka = rep[j];
-            var kb = eliminateWireNegation(wires[j]);
+            var kb = wires[j];
             // var kt = rep[j + 1];
-            var kt = rep[kb];
+            var kt = rep[eliminateWireNegation(kb)];
 
             var localDelay = -1;
             var whichDecomposition = toolParameters.decomposeCliffordT ? 1 : 0;
@@ -162,9 +152,9 @@ function decomposeToKAndU(nGateList)
         for(var j = nwires.length - 1; j>=0; j--)
         {
             var ka = rep[j];
-            var kb = eliminateWireNegation(wires[j]);
+            var kb = wires[j];
             //var kt = rep[j + 1];
-            var kt = rep[kb];
+            var kt = rep[eliminateWireNegation(kb)];
 
             var localDelay = -1;
             var whichDecomposition = toolParameters.decomposeCliffordT ? 1 : 0;
@@ -185,28 +175,66 @@ function simplifyWithTemplates(nGateList)
     // because - zero = zero
     //TODO: Template-urile nu sunt chiar asa generale precum as vrea
     //trebuie sa le fac permutari de fire ca sa le aplic
-    var template1 = [
-        [" U 1 2 3", "K 1 2 3"],
-        []
-    ];
-    var template2 = [
-        ["U 1 2 3", "K 1 -2 3"],
-        ["cx 1 3"]
-    ];
-    var template3 = [
-        ["U -1 2 3", "K -1 2 3"],
-        ["cx 2 3"]
-    ];
-    var template4 = [
-        ["U 1 2 3", "K -1 -2 3"],
-        ["cx 1 3", "cx 2 3"]
+
+    var templates = [
+        /*
+            Equals cancel
+         */
+        [
+            ["U 1 -2 3", "K 1 -2 3"],
+            []
+        ],
+        [
+            ["U -1 2 3", "K -1 2 3"],
+            []
+        ],
+        [
+            ["U 1 2 3", "K 1 2 3"],
+            []
+        ],
+        [
+            ["U -1 -2 3", "K -1 -2 3"],
+            []
+        ],
+        /*
+            Half & Half
+         */
+        [
+            ["U 1 2 3", "K 1 -2 3"],
+            ["cx 1 3"]
+        ],
+        [
+            ["U 1 2 3", "K -1 2 3"],
+            ["cx 2 3"]
+        ],
+        [
+            ["U 1 -2 3", "K 1 2 3"],
+            ["cx 1 3"]
+        ],
+        [
+            ["U -1 2 3", "K 1 2 3"],
+            ["cx 2 3"]
+        ],
+        /*
+            Opposite
+         */
+        [
+            ["U 1 2 3", "K -1 -2 3"],
+            ["cx 1 3", "cx 2 3"]
+        ]
     ];
 
-    var ret = [];
+    var applied = true;
 
-    ret = nGateList;
+    while( applied )
+    {
+        applied = false;
+        for (var i = 0; i < templates.length; i++) {
+           applied = applied || applyTemplate(nGateList, templates[i][0], templates[i][1]);
+        }
+    }
 
-    return ret;
+    return nGateList;
 }
 
 function generateQROM2Circuit()
@@ -216,10 +244,19 @@ function generateQROM2Circuit()
     var gl1 = deleteNegativeControls(gateList);
     // gateList = gl1;//doing this invalidates the raw circ printed in the textarea
 
-    var gl2 = decomposeToKAndU(gl1);
+    // var gl2 =
+    decomposeToKAndU(gl1);
     //gateList = gl2;//doing this invalidates the raw circ printed in the textarea
 
-    // var gl3 = simplifyWithTemplates(gl2);
+    var gl3 = simplifyWithTemplates(gateList);
+
+    //rewrite the gateList
+    gateList = [];
+    writeFileHeader(toolParameters.nrVars);
+    for(var i=3; i<gl3.length; i++)
+    {
+        echo(gl3[i]);
+    }
 
     return gateList;
 }

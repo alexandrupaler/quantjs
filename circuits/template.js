@@ -68,7 +68,7 @@ function translateTemplateVariablesToWires(circuitGate, templateGate)
 
 function increaseVariableTranslationDictionary(dictionary, templateTranslation)
 {
-    var tKeys = templateTranslation.keys();
+    var tKeys = Object.keys(templateTranslation);
     for(var i=0; i<tKeys.length; i++)
     {
         var key = tKeys[i];
@@ -98,6 +98,7 @@ function translateTemplateToCircuit(dictionary, templateR)
         var unschedGate = constructEmptyUnscheduledGate();
 
         unschedGate.gateType = parsedTemplate.gateType;
+        unschedGate.deltaTime = 0;
 
         for(var j=0; j<parsedTemplate.wires.length; j++)
         {
@@ -122,7 +123,7 @@ function checkTranslationEquality(translation1, translation2)
 {
     var ret = true;
     //get the intersection between the variables of the translations
-    var varIntersect = arraysIntersect(translation1.keys(), translation2.keys());
+    var varIntersect = arraysIntersect(Object.keys(translation1), Object.keys(translation2));
 
     for(var i=0; i<varIntersect.length; i++)
     {
@@ -147,13 +148,16 @@ function sameGateType(circuitGate, templateGate)
  * Deocamdata sper sa mearga cand doua porti sunt una langa cealalta in gatelist
  * Trebuie facut, pe baza de intersectii?, sa poata sari peste portile care nu
  * sunt importante
- * @param gateList
+ * @param ngateList
  * @param templateS - search circuit
  * @param templateR - replace circuit
  */
-function applyTemplate(gateList, templateS, templateR)
+function applyTemplate(ngateList, templateS, templateR)
 {
-    for(var i=0; i<gateList.length; i++)
+    var ret = false;
+
+    //skip header
+    for(var i=3; i<ngateList.length; i++)
     {
         var indexToIncrease = i;
         var templateFound = true;
@@ -162,15 +166,16 @@ function applyTemplate(gateList, templateS, templateR)
         //TODO: could be too complex to generate the same dictionary every time. later improve?
         var varsToWiresDictionary = {};
 
-        for(var j=0; j<templateS.length && indexToIncrease < gateList.length; j++)
+        var j = -1;
+        for(j=0; j<templateS.length && indexToIncrease < ngateList.length; j++)
         {
-            if(sameGateType(gateList[indexToIncrease], templateS[j]))
+            if(sameGateType(ngateList[indexToIncrease], templateS[j]))
             {
-                var transl = translateTemplateVariablesToWires(gateList[indexToIncrease], templateS[j]);
-                if(transl.keys().length == 0)
+                var transl = translateTemplateVariablesToWires(ngateList[indexToIncrease], templateS[j]);
+                if(Object.keys(transl).length == 0)
                 {
                     //translation was not possible
-                    indexToIncrease = gateList.length;
+                    indexToIncrease = ngateList.length;
                     templateFound = false;
                 }
                 else if(checkTranslationEquality(previousTranslation, transl))
@@ -182,15 +187,20 @@ function applyTemplate(gateList, templateS, templateR)
                 }
                 else
                 {
-                    indexToIncrease = gateList.length;
+                    indexToIncrease = ngateList.length;
                     templateFound = false;
                 }
             }
             else
             {
-                indexToIncrease = gateList.length;
+                indexToIncrease = ngateList.length;
                 templateFound = false;
             }
+        }
+
+        if(indexToIncrease == ngateList.length && j < templateS.length)
+        {
+            templateFound = false;
         }
 
         if(templateFound)
@@ -199,7 +209,15 @@ function applyTemplate(gateList, templateS, templateR)
             var translatedTemplateR = translateTemplateToCircuit(varsToWiresDictionary, templateR);
 
             //replace the circuits
-            gateList.splice.apply(i, templateS.length, translatedTemplateR);
+            Array.prototype.splice.apply(ngateList, [i, templateS.length].concat(translatedTemplateR));
+
+            console.log("----template");
+            console.log(templateS);
+            console.log(translatedTemplateR);
+
+            ret = true;
         }
     }
+
+    return ret;
 }
