@@ -131,6 +131,8 @@ function scheduleGateList(nGateList, nrTGates)
             if (consumeResult == DistillationResult.STARTNOW) {
                 if (distillationResult != DistillationResult.STOPNOW) {
                     newCommands.push("%" + prevTimeStep + "@diston");
+
+                    console.log("DISTON when " + distillationResult);
                 }
             }
             else
@@ -270,6 +272,7 @@ function constructQuirkLink(nGateList, analysisData)
 
                 if(!toolParameters.noVisualisation)
                 {
+                    console.log(toStringScheduledGate(parsedGate));
                     circuit[parsedGate.timeStep][tgt] = quirkGateType;
                 }
             }

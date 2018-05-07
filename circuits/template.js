@@ -211,9 +211,9 @@ function applyTemplate(ngateList, templateS, templateR)
             //replace the circuits
             Array.prototype.splice.apply(ngateList, [i, templateS.length].concat(translatedTemplateR));
 
-            console.log("----template");
-            console.log(templateS);
-            console.log(translatedTemplateR);
+            // console.log("----template");
+            // console.log(templateS);
+            // console.log(translatedTemplateR);
 
             ret = true;
         }

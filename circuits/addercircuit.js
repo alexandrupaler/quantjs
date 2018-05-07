@@ -14,7 +14,8 @@ function generateAdderCircuit()
 
         if(i == 0)
         {
-            placeK(bit1, bit2, bit3, toolParameters.decomposeCliffordT);
+            // nanoarch paper
+            placeK(bit1, bit2, bit3, toolParameters.decomposeCliffordT? 2 : 0);
         }
         else if(i == (toolParameters.nrLogQubits - 1))
         {
@@ -23,7 +24,9 @@ function generateAdderCircuit()
         else
         {
             placeCX( prevCarry, [bit1, bit2] );
-            placeK(bit1, bit2, bit3, toolParameters.decomposeCliffordT);
+            // placeK(bit1, bit2, bit3, toolParameters.decomposeCliffordT);
+            // nanoarch paper
+            placeK(bit1, bit2, bit3, toolParameters.decomposeCliffordT ? 2 : 0);
             placeCX(prevCarry, [bit3]);
         }
     }

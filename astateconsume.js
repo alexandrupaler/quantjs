@@ -55,6 +55,8 @@ function updateAvailableDistilledStates(timeStep)
         {
             //distillery is closed forever
             currentState = DistillationResult.STOPPED;
+
+            console.log("THIS IS STOPPED!");
         }
         else
         {
@@ -107,8 +109,12 @@ function consumeDistilledState(timeStep)
 
     if(currentState == DistillationResult.STOPPED || currentState == DistillationResult.STOPNOW)
     {
-        ret = DistillationResult.STARTNOW;
-        lastDistillEndTime = timeStep;
+        if(!evaluateCloseDistillery()) {
+            //once all the distillations were performed
+            //it is useless to start the distillery again
+            ret = DistillationResult.STARTNOW;
+            lastDistillEndTime = timeStep;
+        }
 
 
         if(!evaluateCloseDistillery())

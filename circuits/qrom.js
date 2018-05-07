@@ -137,8 +137,8 @@ function decomposeToKAndU(nGateList)
             // var kt = rep[j + 1];
             var kt = rep[eliminateWireNegation(kb)];
 
-            var localDelay = -1;
-            var whichDecomposition = toolParameters.decomposeCliffordT ? 1 : 0;
+            var localDelay = 0;//-1;
+            var whichDecomposition = 0;//toolParameters.decomposeCliffordT ? 1 : 0;
             placeK(ka, kb, kt, whichDecomposition, localDelay);
         }
 
@@ -156,8 +156,8 @@ function decomposeToKAndU(nGateList)
             //var kt = rep[j + 1];
             var kt = rep[eliminateWireNegation(kb)];
 
-            var localDelay = -1;
-            var whichDecomposition = toolParameters.decomposeCliffordT ? 1 : 0;
+            var localDelay = 0;//-1;
+            var whichDecomposition = 0;//toolParameters.decomposeCliffordT ? 1 : 0;
             placeU(ka, kb, kt, whichDecomposition, localDelay);
         }
     }
@@ -250,12 +250,58 @@ function generateQROM2Circuit()
 
     var gl3 = simplifyWithTemplates(gateList);
 
-    //rewrite the gateList
     gateList = [];
     writeFileHeader(toolParameters.nrVars);
-    for(var i=3; i<gl3.length; i++)
+
+    if(toolParameters.decomposeCliffordT)
     {
-        echo(gl3[i]);
+        //the previous version decomposed in placeGate
+        //and it was too soon
+        //TODO: Fa descompunerea asta sa fie calumea
+        var wasCXBefore = false;
+        for(var i=3; i<gl3.length; i++)
+        {
+            var gate = parseUnscheduledGateString(gl3[i]);
+            for(var wi=0; wi<gate.wires.length; wi++)
+                gate.wires[wi] = eliminateWireNegation(gate.wires[wi]);
+
+            switch(gate.gateType)
+            {
+                case "K":
+                    var delay = -1;
+                    if(i==3)
+                        delay = 0;
+                    placeK(gate.wires[1], gate.wires[0], gate.wires[2], 1, delay);
+                    break;
+                case "U":
+                    var delay = -1;
+                    if(wasCXBefore)
+                        delay = 0;
+                    placeU(gate.wires[1], gate.wires[0], gate.wires[2], 1, delay);
+
+                    wasCXBefore = false;
+                    break;
+                case "cx":
+                    var delay = 0;
+                    if(wasCXBefore)
+                        delay = 0;
+
+                    var control = gate.wires[0];
+                    gate.wires.splice(0, 1);
+                    placeCX(control, gate.wires, delay);
+
+                    wasCXBefore = true;
+                    break;
+            }
+        }
+    }
+    else
+    {
+        //rewrite the gateList
+        for(var i=3; i<gl3.length; i++)
+        {
+            echo(gl3[i]);
+        }
     }
 
     return gateList;
