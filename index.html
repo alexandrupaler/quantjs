@@ -153,8 +153,11 @@ function estimateBoundingBox(analysisData, aStatesData)
     var totalHeight = nrQubitLines + 2 + distillationHeight;
     echo("height: (" + nrQubitLines + ") "+ totalHeight, "stats");
 
-    var volume = totalHeight * totalWidth * totalDepth;
-    echo("volume: " + volume, "stats");
+    var volume2 = totalHeight * totalWidth * totalDepth;
+    echo("volume_2: " + volume2, "stats");
+
+    var volume0 = (totalHeight - distillationHeight) * totalWidth * totalDepth;
+    echo("volume_0: " + volume0, "stats");
 
     var difference = analysisData.timesteps - analysisData.nrTGates * toolParameters.distillationLength;
     var unusedDistillationBlock = 2 * difference * distillationWidth * distillationHeight;
