@@ -13,6 +13,7 @@ function generateTotalControl(maxIndex /*K*/) {
     //how many l qubits one needs for applying
     //controlled operations on maxIndex logical qubits
     var smallLQubits = Math.ceil(Math.log2(maxIndex));
+
     var nrControls = smallLQubits + 1;//because of the control qubit +1
 
     for (var i = 0; i < maxIndex; i++) {
@@ -55,7 +56,7 @@ function deleteNegativeControls(nGateList)
 
     var gate = parseUnscheduledGateString(nGateList[nGateList.length - 1]);
 
-    var originalWires = gate.wires;
+    var originalWires = gate.wires.slice();
 
     for(var i=0; i<originalWires.length; i++)
     {
@@ -242,7 +243,9 @@ function generateQROM2Circuit()
     generateTotalControl(toolParameters.nrLogQubits);
 
     var gl1 = deleteNegativeControls(gateList);
-    // gateList = gl1;//doing this invalidates the raw circ printed in the textarea
+    //  gateList = gl1;//doing this invalidates the raw circ printed in the textarea
+    //
+    // return;
 
     // var gl2 =
     decomposeToKAndU(gl1);
