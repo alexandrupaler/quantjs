@@ -2,7 +2,7 @@
  * Generate a total control circuit
  * @param maxIndex
  */
-function generateTotalControl(maxIndex /*K*/) {
+function generateTotalControl(maxIndex /*K*/, nrControls, nrDataQubits) {
     //resets the global array. Not good.
     gateList = [];
 
@@ -13,14 +13,14 @@ function generateTotalControl(maxIndex /*K*/) {
     //how many l qubits one needs for applying
     //controlled operations on maxIndex logical qubits
     var smallLQubits = Math.ceil(Math.log2(maxIndex));
-
-    var nrControls = smallLQubits + 1;//because of the control qubit +1
+    //var nrControls = smallLQubits + 1;//because of the control qubit +1
 
     for (var i = 0; i < maxIndex; i++) {
         var binary = binaryRepresentation(i, smallLQubits);
 
         var gate = constructEmptyUnscheduledGate();
         gate.gateType = "C_" + nrControls + "_" + maxIndex;
+        // gate.gateType = "C_" + ((nrControls-1)/2) + "_" + nrDataQubits;
 
         gate.wires.push(controlIndex);
 
@@ -113,10 +113,11 @@ function decomposeToKAndU(nGateList)
     for(var i=0; i<nrBits; i++)
         rep.push(1 + nrBits + i);
 
+    //TODO: this is error
     var cxTargets = [];
-    for(var i=0; i<toolParameters.nrLogQubits; i++)
+    for(var i=0; i<toolParameters.nrDataQubits; i++)
     {
-        cxTargets.push(1 + 2*nrBits + i);
+        cxTargets.push(toolParameters.nrControls + i);
     }
 
     for(var i=3; i<nGateList.length; i++)
@@ -240,7 +241,9 @@ function simplifyWithTemplates(nGateList)
 
 function generateQROM2Circuit()
 {
-    generateTotalControl(toolParameters.nrLogQubits);
+    generateTotalControl(toolParameters.nrLogQubits,
+        toolParameters.nrControls,
+        toolParameters.nrDataQubits);
 
     var gl1 = deleteNegativeControls(gateList);
     //  gateList = gl1;//doing this invalidates the raw circ printed in the textarea

@@ -43,14 +43,29 @@ function readToolParameters()
 
     if(toolParameters.circuitGenerator == "majorana")
     {
-        toolParameters.nrQubits = Math.pow(2, toolParameters.nrLogQubits);
-        toolParameters.nrVars = toolParameters.nrQubits + 2 * toolParameters.nrLogQubits + 1 /*control*/;
+        // old version
+        // toolParameters.nrQubits = Math.pow(2, toolParameters.nrLogQubits);
+        // toolParameters.nrVars = toolParameters.nrQubits + 2 * toolParameters.nrLogQubits + 1 /*control*/;
+
+        toolParameters.nrQubits = Math.ceil(Math.log2(toolParameters.nrLogQubits));
+        //toolParameters.nrVars = 2*toolParameters.nrQubits + toolParameters.nrLogQubits + 1 /*control*/;
+
+        toolParameters.nrControls = 2*toolParameters.nrQubits + 1;
+        toolParameters.nrDataQubits = toolParameters.nrLogQubits;
+
+        toolParameters.nrVars = Number(document.getElementById("totalqubitsnight").value);
     }
     else if(toolParameters.circuitGenerator == "qrom")
     {
+        toolParameters.nrLogQubits *= 1.5;
+        
         toolParameters.nrQubits = Math.ceil(Math.log2(toolParameters.nrLogQubits));
-        toolParameters.nrVars = 2*toolParameters.nrQubits + toolParameters.nrLogQubits + 1 /*control*/;
+        //toolParameters.nrVars = 2*toolParameters.nrQubits + toolParameters.nrQubits + 1 /*control*/;
 
+        toolParameters.nrControls = 2*toolParameters.nrQubits + 1;
+        toolParameters.nrDataQubits = toolParameters.nrQubits + Number(document.getElementById("munight").value);
+
+        toolParameters.nrVars = Number(document.getElementById("totalqubitsnight").value);
 
         // //old version of qrom
         // toolParameters.nrQubits = Math.pow(2, toolParameters.nrLogQubits);

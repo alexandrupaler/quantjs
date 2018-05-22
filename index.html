@@ -49,7 +49,8 @@ function pressGenerate()
     switch(toolParameters.circuitGenerator)
     {
         case "majorana":
-            generateMajoranaCircuit();
+            //generateMajoranaCircuit();
+            generateQROM2Circuit();
             break;
         /*case "chemistry2":
             generateChemCircuitNewUncompute();
@@ -97,13 +98,14 @@ function pressGenerate()
      */
     var analysisData = analyseCircuit(schedlist, toolParameters.lookAhead);
 
-    var obj = constructQuirkLink(schedlist, analysisData);
+    if(!toolParameters.noVisualisation) {
+        var obj = constructQuirkLink(schedlist, analysisData);
 
-    echo(undefined, "quirkLink");
-    echo(obj.link, "quirkLink");
+        echo(undefined, "quirkLink");
+        echo(obj.link, "quirkLink");
 
-    document.getElementById("quirkiframe").src = obj.link;
-
+        document.getElementById("quirkiframe").src = obj.link;
+    }
     var distillationDepth = (analysisData.nrTGates * toolParameters.distillationLength);
 
     echo(undefined, "stats");
@@ -151,7 +153,7 @@ function estimateBoundingBox(analysisData, aStatesData)
 
     var nrQubitLines = Math.ceil(toolParameters.nrVars / nrLogQubitsPerLine );
     var totalHeight = nrQubitLines + 2 + distillationHeight;
-    echo("height: (" + nrQubitLines + ") "+ totalHeight, "stats");
+    echo("height: (" + (nrQubitLines +  2) + ") "+ totalHeight, "stats");
 
     var volume2 = totalHeight * totalWidth * totalDepth;
     echo("volume_2: " + volume2, "stats");
@@ -239,6 +241,10 @@ function writeFileHeader(nrvars, where)
     </select>
 
     Nr Log Qubits (log_2 N): <input id="nrq" value="2" size="3" type="number" min=2 onchange="pressGenerate()">
+<br>
+    TOTAL Q Night: <input id="totalqubitsnight" value="2" size="3" type="number" min=2">
+<br>
+    MU Night: <input id="munight" value="0" size="3" type="number" min=0">
 <br>
     Max avail. distilled A: <input id="nrMaxAvailable" value="0" size="3" type="number" min=0 onchange="pressGenerate()">
 <br>
