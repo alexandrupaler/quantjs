@@ -1,4 +1,9 @@
-function arraysIntersect(a, b)
+function GateTemplates()
+{
+
+}
+
+GateTemplates.prototype.arraysIntersect = function(a, b)
 {
     var t;
     if (b.length > a.length)
@@ -18,21 +23,6 @@ function arraysIntersect(a, b)
     });
 }
 
-function isNegatedWire(wire)
-{
-    return wire < 0;
-}
-
-function negateWire(wire)
-{
-    return -wire;
-}
-
-function eliminateWireNegation(wire)
-{
-    return Math.abs(wire);
-}
-
 /**
  * Computes a map between template variables and gate wires.
  * If map is zero length, translation could not be performed
@@ -40,19 +30,19 @@ function eliminateWireNegation(wire)
  * @param templateGate
  * @returns {{the map}}
  */
-function translateTemplateVariablesToWires(circuitGate, templateGate)
+GateTemplates.prototype.translateTemplateVariablesToWires = function(circuitGate, templateGate)
 {
     var ret = {};
 
-    var templateWires = parseTemplateGateString(templateGate).wires;
-    var circuitWires = parseUnscheduledGateString(circuitGate).wires;
+    var templateWires = TemplateGate.parseTemplateGateString(templateGate).wires;
+    var circuitWires = UnscheduledGate.parseUnscheduledGateString(circuitGate).wires;
 
     for(var i=0; i<templateWires.length; i++)
     {
         var key = templateWires[i];
         var value = circuitWires[i];
 
-        if(isNegatedWire(key) == isNegatedWire(value))
+        if(WireUtils.isNegatedWire(key) == WireUtils.isNegatedWire(value))
         {
             ret[key] = value;
         }
@@ -66,7 +56,7 @@ function translateTemplateVariablesToWires(circuitGate, templateGate)
     return ret;
 }
 
-function increaseVariableTranslationDictionary(dictionary, templateTranslation)
+GateTemplates.prototype.increaseVariableTranslationDictionary = function(dictionary, templateTranslation)
 {
     var tKeys = Object.keys(templateTranslation);
     for(var i=0; i<tKeys.length; i++)
@@ -75,27 +65,27 @@ function increaseVariableTranslationDictionary(dictionary, templateTranslation)
 
         var value = templateTranslation[key];
 
-        if(isNegatedWire(key))
+        if(WireUtils.isNegatedWire(key))
         {
             key = -key;
             value = -value;
         }
 
         //nu verific corectitudinea
-        dictionary[eliminateWireNegation(key)] = eliminateWireNegation(templateTranslation[key]);
+        dictionary[WireUtils.eliminateWireNegation(key)] = WireUtils.eliminateWireNegation(templateTranslation[key]);
     }
 
     return dictionary;
 }
 
-function translateTemplateToCircuit(dictionary, templateR)
+GateTemplates.prototype.translateTemplateToCircuit = function(dictionary, templateR)
 {
     var ret = [];
 
     for(var i=0; i<templateR.length; i++)
     {
-        var parsedTemplate = parseTemplateGateString(templateR[i]);
-        var unschedGate = constructEmptyUnscheduledGate();
+        var parsedTemplate = TemplateGate.parseTemplateGateString(templateR[i]);
+        var unschedGate = new UnscheduledGate();
 
         unschedGate.gateType = parsedTemplate.gateType;
         unschedGate.deltaTime = 0;
@@ -104,26 +94,26 @@ function translateTemplateToCircuit(dictionary, templateR)
         {
             var wireVar = parsedTemplate.wires[j];
 
-            var circuitWire = dictionary[eliminateWireNegation(wireVar)];
+            var circuitWire = dictionary[WireUtils.eliminateWireNegation(wireVar)];
 
-            if(isNegatedWire(wireVar))
-                circuitWire = negateWire(circuitWire);
+            if(WireUtils.isNegatedWire(wireVar))
+                circuitWire = WireUtils.negateWire(circuitWire);
 
             unschedGate.wires.push(circuitWire);
         }
 
-        ret.push(toStringUnscheduledGate(unschedGate));
+        ret.push(unschedGate.toString());
     }
 
     return ret;
 }
 
 
-function checkTranslationEquality(translation1, translation2)
+GateTemplates.prototype.checkTranslationEquality = function(translation1, translation2)
 {
     var ret = true;
     //get the intersection between the variables of the translations
-    var varIntersect = arraysIntersect(Object.keys(translation1), Object.keys(translation2));
+    var varIntersect = this.arraysIntersect(Object.keys(translation1), Object.keys(translation2));
 
     for(var i=0; i<varIntersect.length; i++)
     {
@@ -137,10 +127,10 @@ function checkTranslationEquality(translation1, translation2)
     return ret;
 }
 
-function sameGateType(circuitGate, templateGate)
+GateTemplates.prototype.sameGateType = function(circuitGate, templateGate)
 {
-    var circuitGateType = parseUnscheduledGateString(circuitGate).gateType;
-    var templateGateType = parseTemplateGateString(templateGate).gateType;
+    var circuitGateType = UnscheduledGate.parseUnscheduledGateString(circuitGate).gateType;
+    var templateGateType = TemplateGate.parseTemplateGateString(templateGate).gateType;
     return circuitGateType === templateGateType;
 }
 
@@ -152,7 +142,7 @@ function sameGateType(circuitGate, templateGate)
  * @param templateS - search circuit
  * @param templateR - replace circuit
  */
-function applyTemplate(ngateList, templateS, templateR)
+GateTemplates.prototype.applyTemplate = function(ngateList, templateS, templateR)
 {
     var ret = false;
 
@@ -169,20 +159,20 @@ function applyTemplate(ngateList, templateS, templateR)
         var j = -1;
         for(j=0; j<templateS.length && indexToIncrease < ngateList.length; j++)
         {
-            if(sameGateType(ngateList[indexToIncrease], templateS[j]))
+            if(this.sameGateType(ngateList[indexToIncrease], templateS[j]))
             {
-                var transl = translateTemplateVariablesToWires(ngateList[indexToIncrease], templateS[j]);
+                var transl = this.translateTemplateVariablesToWires(ngateList[indexToIncrease], templateS[j]);
                 if(Object.keys(transl).length == 0)
                 {
                     //translation was not possible
                     indexToIncrease = ngateList.length;
                     templateFound = false;
                 }
-                else if(checkTranslationEquality(previousTranslation, transl))
+                else if(this.checkTranslationEquality(previousTranslation, transl))
                 {
                     indexToIncrease++;
 
-                    varsToWiresDictionary = increaseVariableTranslationDictionary(varsToWiresDictionary, transl);
+                    varsToWiresDictionary = this.increaseVariableTranslationDictionary(varsToWiresDictionary, transl);
                     previousTranslation = transl;
                 }
                 else
@@ -206,7 +196,7 @@ function applyTemplate(ngateList, templateS, templateR)
         if(templateFound)
         {
             //translate templateR to circuit
-            var translatedTemplateR = translateTemplateToCircuit(varsToWiresDictionary, templateR);
+            var translatedTemplateR = this.translateTemplateToCircuit(varsToWiresDictionary, templateR);
 
             //replace the circuits
             Array.prototype.splice.apply(ngateList, [i, templateS.length].concat(translatedTemplateR));

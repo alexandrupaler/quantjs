@@ -67,7 +67,7 @@ function analyseCircuit(schedGateList, windowLength)
     //first three are file header
     for(var i=3; i<schedGateList.length; i++)
     {
-        var parsedGate = parseScheduledGateString(schedGateList[i]);
+        var parsedGate = ScheduledGate.parseScheduledGateString(schedGateList[i]);
         if(parsedGate.isComment)
             continue;
 

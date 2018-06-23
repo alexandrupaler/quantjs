@@ -16,29 +16,27 @@ var vGateString = "X^\u00BD";
 var xGateString = "X";
 var hGateString = "H";
 
-function addEmptyCircuitColumn(circuit)
+function addEmptyCircuitColumn(circuit, localNrVars)
 {
     var nc = new Array();
-    for(var j = 0; j < toolParameters.nrVars; j++)
+    for(var j = 0; j < localNrVars; j++)
         nc.push(1);
 
     circuit.push(nc);
 }
 
-function checkCircuitLengthAndCorrect(circuit, required)
+function checkCircuitLengthAndCorrect(circuit, required, localNrVars)
 {
     if(circuit.length <= required)
     {
         var dif = required - circuit.length + 1;
         for(var i=0; i<dif; i++)
-            addEmptyCircuitColumn(circuit);
+            addEmptyCircuitColumn(circuit, localNrVars);
     }
 }
 
 function arrangeDecomposedCircuit(nGateList)
 {
-    computeFirstWireUsage(nGateList);
-
     var timeStep = -1;
     var newCommands = new Array();//used for sched circ. one gate per line in file
 
@@ -52,11 +50,11 @@ function arrangeDecomposedCircuit(nGateList)
     {
         timeStep++;
 
-        var parsedGate = parseUnscheduledGateString(nGateList[i]);
+        var parsedGate = UnscheduledGate.parseUnscheduledGateString(nGateList[i]);
 
         timeStep += parsedGate.deltaTime;
 
-        var scheduledGate = constructEmptyScheduledGate();
+        var scheduledGate = new ScheduledGate();
         scheduledGate.timeStep = timeStep;
         scheduledGate.gateType = parsedGate.gateType[0];
 
@@ -92,7 +90,7 @@ function arrangeDecomposedCircuit(nGateList)
                 break;
         }
 
-        newCommands.push(toStringScheduledGate(scheduledGate));
+        newCommands.push(scheduledGate.toString());
     }
 
     return newCommands;
@@ -118,7 +116,7 @@ function scheduleGateList(nGateList, nrTGates)
 
     for (var i = 3; i < nGateList.length; i++)
     {
-        var parsedGate = parseScheduledGateString(nGateList[i]);
+        var parsedGate = ScheduledGate.parseScheduledGateString(nGateList[i]);
 
         var timeStep = parsedGate.timeStep;
         var ntimeStep = timeStep + accumulatedTimeStepIncrement;
@@ -172,7 +170,7 @@ function scheduleGateList(nGateList, nrTGates)
         parsedGate.timeStep += accumulatedTimeStepIncrement;
         prevTimeStep = parsedGate.timeStep;
 
-        newCommands.push(toStringScheduledGate(parsedGate));
+        newCommands.push(parsedGate.toString());
     }
 
     return newCommands;
@@ -186,22 +184,26 @@ function constructQuirkLink(nGateList, analysisData)
 
     var circuit = new Array();
 
+    //the same trick with reading the number of vars from the first line
+    var localNrVars = Number(nGateList[0].split(" ")[1]);
+
+
     //first three are file header
     for (var i = 3; i < nGateList.length; i++)
     {
-        var parsedGate = parseScheduledGateString(nGateList[i]);
+        var parsedGate = ScheduledGate.parseScheduledGateString(nGateList[i]);
 
         if(parsedGate.isComment)
             continue;
 
         if(!toolParameters.noVisualisation)
-            checkCircuitLengthAndCorrect(circuit, parsedGate.timeStep);
+            checkCircuitLengthAndCorrect(circuit, parsedGate.timeStep, localNrVars);
 
         if(parsedGate.gateType[0] == 'K' || parsedGate.gateType[0] == 'U')
         {
-            var a1 = getWireNumber(Number(eliminateWireNegation(parsedGate.wires[0])));
-            var b1 = getWireNumber(Number(eliminateWireNegation(parsedGate.wires[1])));
-            var ab1 = getWireNumber(Number(eliminateWireNegation(parsedGate.wires[2])));
+            var a1 = getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[0])));
+            var b1 = getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[1])));
+            var ab1 = getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[2])));
 
             if(!toolParameters.noVisualisation)
             {
@@ -221,11 +223,11 @@ function constructQuirkLink(nGateList, analysisData)
             for(var ci=0; ci<nr1; ci++) {
                 var wire = parsedGate.wires[ci];
                 var qComm = controlString;
-                if(isNegatedWire(wire)) {
+                if(WireUtils.isNegatedWire(wire)) {
                     qComm = antiControlString;
                     // wire = eliminateWireNegation(wire);
                 }
-                circuit[parsedGate.timeStep][eliminateWireNegation(wire)] = qComm;//"dec1"
+                circuit[parsedGate.timeStep][WireUtils.eliminateWireNegation(wire)] = qComm;//"dec1"
             }
 
             //after rep qubits
@@ -272,7 +274,7 @@ function constructQuirkLink(nGateList, analysisData)
 
                 if(!toolParameters.noVisualisation)
                 {
-                    console.log(toStringScheduledGate(parsedGate));
+                    console.log(parsedGate.timeStep + " " + tgt + "...." + parsedGate.toString());
                     circuit[parsedGate.timeStep][tgt] = quirkGateType;
                 }
             }
@@ -361,6 +363,7 @@ function removeDistillationSpacers(circuit)
     return nrVars;
 }
 
+//TODO: actualizeaza la OO
 function parseLink()
 {
     /*
@@ -388,7 +391,7 @@ function parseLink()
     //console.log(circuit);
     console.log(nNrVars);
 
-    gateList = [ ];
+    gateList = [];
     writeFileHeader(nNrVars);
 
 

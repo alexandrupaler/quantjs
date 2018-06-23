@@ -1,19 +1,18 @@
 /**
  * Like a constructor, but code is not OO for the moment
  */
-function constructEmptyUnscheduledGate()
-{
-    var ret = {};
-    ret.deltaTime = -1;
-    ret.gateType = "";
-    ret.wires = [];
 
-    return ret;
+function UnscheduledGate()
+{
+    this.deltaTime = -1;
+    this.gateType = "";
+    this.wires = [];
 }
 
-function parseUnscheduledGateString(gate)
+UnscheduledGate.parseUnscheduledGateString = function(gate)
 {
-    var ret = constructEmptyUnscheduledGate();
+    // var ret = constructEmptyUnscheduledGate();
+    var ret = new UnscheduledGate();
 
     var command = gate.split("|");
     var commandSplits = command[0].split(" ");
@@ -28,37 +27,31 @@ function parseUnscheduledGateString(gate)
     return ret;
 }
 
-function toStringUnscheduledGate(gate)
+UnscheduledGate.prototype.toString = function()
 {
     var ret = "";
 
-    ret += gate.gateType;
-    for(var i=0; i<gate.wires.length; i++)
+    ret += this.gateType;
+    for(var i=0; i<this.wires.length; i++)
     {
-        ret += " " + gate.wires[i];
+        ret += " " + this.wires[i];
     }
-    ret += "|" + gate.deltaTime;
+    ret += "|" + this.deltaTime;
 
     return ret;
 }
 
-/**
- * Like a constructor, but code is not OO for the moment
- */
-function constructEmptyScheduledGate()
+function ScheduledGate()
 {
-    var ret = {};
-    ret.isComment = false;
-    ret.timeStep = -1;
-    ret.gateType = "";
-    ret.wires = [];
-
-    return ret;
+    this.isComment = false;
+    this.timeStep = -1;
+    this.gateType = "";
+    this.wires = [];
 }
 
-function parseScheduledGateString(gate)
+ScheduledGate.parseScheduledGateString = function(gate)
 {
-    var ret = constructEmptyScheduledGate();
+    var ret = new ScheduledGate();
 
     var command = gate.split("@");
     ret.isComment = (command[0][0] == '%');
@@ -79,40 +72,31 @@ function parseScheduledGateString(gate)
     return ret;
 }
 
-function toStringScheduledGate(gate)
+ScheduledGate.prototype.toString = function()
 {
     var ret = "";
     if(ret.isComment)
         ret = "%";
 
-    ret += gate.timeStep + "@";
-    ret += gate.gateType;
-    for(var i=0; i<gate.wires.length; i++)
+    ret += this.timeStep + "@";
+    ret += this.gateType;
+    for(var i=0; i<this.wires.length; i++)
     {
-        ret += " " + gate.wires[i];
+        ret += " " + this.wires[i];
     }
 
     return ret;
 }
 
-/**
- *
- */
-/**
- * Like a constructor, but code is not OO for the moment
- */
-function constructEmptyTemplateGate()
+function TemplateGate()
 {
-    var ret = {};
-    ret.gateType = "";
-    ret.wires = [];
-
-    return ret;
+    this.gateType = "";
+    this.wires = [];
 }
 
-function parseTemplateGateString(gate)
+TemplateGate.parseTemplateGateString = function(gate)
 {
-    var ret = constructEmptyTemplateGate();
+    var ret = new TemplateGate();
 
     var commandSplits = gate.split(" ");
     ret.gateType = commandSplits[0];

@@ -31,7 +31,7 @@ function readToolParameters()
     toolParameters.oneTGatePerTimestep = document.getElementById("onetpertime").checked;
     toolParameters.noVisualisation = document.getElementById("novisual").checked;
 
-    toolParameters.nrLogQubits = Number(document.getElementById("nrq").value);
+    // toolParameters.nrLogQubits = Number(document.getElementById("nrq").value);
     toolParameters.lookAhead = Number(document.getElementById("lookahead").value);
 
     toolParameters.maximumAAvailable = Number(document.getElementById("nrMaxAvailable").value);
@@ -55,26 +55,26 @@ function readToolParameters()
 
         toolParameters.nrVars = Number(document.getElementById("totalqubitsnight").value);
     }
-    else if(toolParameters.circuitGenerator == "qrom")
-    {
-        toolParameters.nrLogQubits *= 1.5;
-        
-        toolParameters.nrQubits = Math.ceil(Math.log2(toolParameters.nrLogQubits));
-        //toolParameters.nrVars = 2*toolParameters.nrQubits + toolParameters.nrQubits + 1 /*control*/;
-
-        toolParameters.nrControls = 2*toolParameters.nrQubits + 1;
-        toolParameters.nrDataQubits = toolParameters.nrQubits + Number(document.getElementById("munight").value);
-
-        toolParameters.nrVars = Number(document.getElementById("totalqubitsnight").value);
-
-        // //old version of qrom
-        // toolParameters.nrQubits = Math.pow(2, toolParameters.nrLogQubits);
-        // toolParameters.nrVars = toolParameters.nrQubits + 2 * toolParameters.nrLogQubits + 1 /*control*/;
-    }
-    else if(toolParameters.circuitGenerator == "adder")
-    {
-        toolParameters.nrQubits = 3 * (toolParameters.nrLogQubits - 1 ) + 2;
-        toolParameters.nrVars = toolParameters.nrQubits;
-    }
+    // else if(toolParameters.circuitGenerator == "qrom")
+    // {
+    //     toolParameters.nrLogQubits *= 1.5;
+    //
+    //     toolParameters.nrQubits = Math.ceil(Math.log2(toolParameters.nrLogQubits));
+    //     //toolParameters.nrVars = 2*toolParameters.nrQubits + toolParameters.nrQubits + 1 /*control*/;
+    //
+    //     toolParameters.nrControls = 2*toolParameters.nrQubits + 1;
+    //     toolParameters.nrDataQubits = toolParameters.nrQubits + Number(document.getElementById("munight").value);
+    //
+    //     toolParameters.nrVars = Number(document.getElementById("totalqubitsnight").value);
+    //
+    //     // //old version of qrom
+    //     // toolParameters.nrQubits = Math.pow(2, toolParameters.nrLogQubits);
+    //     // toolParameters.nrVars = toolParameters.nrQubits + 2 * toolParameters.nrLogQubits + 1 /*control*/;
+    // }
+    // else if(toolParameters.circuitGenerator == "adder")
+    // {
+    //     toolParameters.nrQubits = 3 * (toolParameters.nrLogQubits - 1 ) + 2;
+    //     toolParameters.nrVars = toolParameters.nrQubits;
+    // }
 
 }

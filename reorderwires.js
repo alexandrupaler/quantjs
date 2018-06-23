@@ -13,6 +13,9 @@ function computeFirstWireUsage(gateList)
 {
     wireNumber = [];
 
+    // first line is the number of vars
+    var nrLocalNrVars = Number(gateList[0].split(" ")[1]);
+
     if(toolParameters.reorderWires)
     {
         var tmpNrW = new Array();
@@ -34,14 +37,14 @@ function computeFirstWireUsage(gateList)
                 }
             }
         }
-        for(var i=0; i<toolParameters.nrVars; i++)
+        for(var i=0; i<nrLocalNrVars; i++)
         {
             wireNumber[tmpNrW[i]] = i;
         }
     }
     else
     {
-        for(var i=0; i<toolParameters.nrVars; i++)
+        for(var i=0; i<nrLocalNrVars; i++)
             wireNumber.push(i);
     }
 }

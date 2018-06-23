@@ -7,8 +7,11 @@
     <link rel="stylesheet" href="styles.css">
 
     <script src="libs/Chart.min.js"></script>
+    <script src="gui/generatorparameters.js"></script>
+    <script src="gui/echocommands.js"></script>
     <script src="toolparameters.js"></script>
 
+    <script src="circuits/wireutils.js"></script>
     <script src="circuits/placegate.js"></script>
     <script src="circuits/template.js"></script>
     <script src="circuits/gatestring.js"></script>
@@ -28,42 +31,52 @@
 <script>
 
 //TODO: fa sa dispara asta care arata global
-var gateList = new Array();
+var currentGenerator = null;
+var echoCommands = new EchoCommands(toolParameters);
 
 function otherCircuitSelected()
 {
     //reset number of qubits
     //because some circuits exponentiate this number
-    document.getElementById("nrq").value = "2";
+    //document.getElementById("nrq").value = "2";
+
+    currentGenerator = null;
 
     pressGenerate();
 }
 
 function pressGenerate()
 {
+    var genParam = new GeneratorParameters();
+
     readToolParameters();
 
-    echo(undefined, "stats");
-    echo("computing...", "stats");
+    echoCommands.echo(undefined, "stats");
+    echoCommands.echo("computing...", "stats");
 
-    switch(toolParameters.circuitGenerator)
-    {
-        case "majorana":
-            //generateMajoranaCircuit();
-            generateQROM2Circuit();
-            break;
-        /*case "chemistry2":
-            generateChemCircuitNewUncompute();
-            break;
-            */
-        case "qrom":
+    if (currentGenerator == null) {
+
+        switch (toolParameters.circuitGenerator) {
+            case "majorana":
+                //generateMajoranaCircuit();
+//            currentGenerator = new QROMGenerator();
+                break;
+            case "qrom":
 //            generateQROMCircuit();
-            generateQROM2Circuit();
-            break;
-        case "adder":
-            generateAdderCircuit();
-            break;
+//            generateQROM2Circuit();
+                currentGenerator = new QROMGenerator();
+                break;
+            case "adder":
+                currentGenerator = new AdderGenerator();
+                break;
+        }
+
+        //write the html for the parameters
+        document.getElementById("paramsDiv").innerHTML = genParam.generateHTML(currentGenerator.getParameters());
     }
+
+    var paramValues = genParam.readHTMLValues(currentGenerator.getParameters());
+    var gateList = currentGenerator.generateCircuit(paramValues, toolParameters);
 
     //mai exista un resetdata in astatesconsume
     //resetAnalysisData();
@@ -76,6 +89,9 @@ function pressGenerate()
     {
         ngatelist = gateList;
     }
+
+    computeFirstWireUsage(ngatelist);
+
     var schedlist = arrangeDecomposedCircuit(ngatelist);
 
     if(toolParameters.distillAndConsumeTStates)
@@ -86,11 +102,10 @@ function pressGenerate()
     }
 
     //unrolled the single qubit gates
-    //writeFileHeader(toolParameters.nrVars, "circuitnew");
-    echo(undefined, "circuitnew");
+    echoCommands.clear("circuitnew");
     for(var y=0; y<schedlist.length; y++)
     {
-        echo(schedlist[y], "circuitnew");
+        echoCommands.echo(schedlist[y], "circuitnew");
     }
 
     /*
@@ -101,20 +116,21 @@ function pressGenerate()
     if(!toolParameters.noVisualisation) {
         var obj = constructQuirkLink(schedlist, analysisData);
 
-        echo(undefined, "quirkLink");
-        echo(obj.link, "quirkLink");
+        echoCommands.clear("quirkLink");
+        echoCommands.echo(obj.link, "quirkLink");
 
         document.getElementById("quirkiframe").src = obj.link;
     }
     var distillationDepth = (analysisData.nrTGates * toolParameters.distillationLength);
 
-    echo(undefined, "stats");
-    echo("number wires " + toolParameters.nrVars, "stats");
-    echo("current gate list length " + (gateList.length - 3), "stats");
-    echo("current circuit depth " + analysisData.timesteps, "stats");
-    echo("nr T gates "  + analysisData.nrTGates, "stats");
-    echo("single distillation depth " + toolParameters.distillationLength, "stats");
-    echo("total T distillations depth " + distillationDepth, "stats");
+    var localNrVars = Number(gateList[0].split(" ")[1]);
+    echoCommands.clear("stats");
+    echoCommands.echo("number wires " + localNrVars, "stats");
+    echoCommands.echo("current gate list length " + (gateList.length - 3), "stats");
+    echoCommands.echo("current circuit depth " + analysisData.timesteps, "stats");
+    echoCommands.echo("nr T gates "  + analysisData.nrTGates, "stats");
+    echoCommands.echo("single distillation depth " + toolParameters.distillationLength, "stats");
+    echoCommands.echo("total T distillations depth " + distillationDepth, "stats");
 
     if(toolParameters.distillAndConsumeTStates)
         estimateBoundingBox(analysisData, aStatesData);
@@ -140,65 +156,34 @@ function estimateBoundingBox(analysisData, aStatesData)
         return Math.max(a, b);
     });
 
-    echo("\nEstimated bounding box (plumbing pieces):", "stats");
+    echoCommands.echo("\nEstimated bounding box (plumbing pieces):", "stats");
     var totalDepth = analysisData.timesteps * 2;
-    echo("depth: " + totalDepth, "stats");
+    echoCommands.echo("depth: " + totalDepth, "stats");
 
     var totalWidth = Math.max(mostAvailableDistilledAStates * 2 + 1/*connection around the log qubit block*/,
         distillationWidth);
-    echo("width: " + totalWidth, "stats");
+    echoCommands.echo("width: " + totalWidth, "stats");
 
     var nrLogQubitsPerLine = Math.floor(distillationWidth / 2);
     nrLogQubitsPerLine--;//take one out because some connections use a plumbing piece
 
     var nrQubitLines = Math.ceil(toolParameters.nrVars / nrLogQubitsPerLine );
     var totalHeight = nrQubitLines + 2 + distillationHeight;
-    echo("height: (" + (nrQubitLines +  2) + ") "+ totalHeight, "stats");
+    echoCommands.echo("height: (" + (nrQubitLines +  2) + ") "+ totalHeight, "stats");
 
     var volume2 = totalHeight * totalWidth * totalDepth;
-    echo("volume_2: " + volume2, "stats");
+    echoCommands.echo("volume_2: " + volume2, "stats");
 
     var volume0 = (totalHeight - distillationHeight) * totalWidth * totalDepth;
-    echo("volume_0: " + volume0, "stats");
+    echoCommands.echo("volume_0: " + volume0, "stats");
 
     var difference = analysisData.timesteps - analysisData.nrTGates * toolParameters.distillationLength;
     var unusedDistillationBlock = 2 * difference * distillationWidth * distillationHeight;
     unusedDistillationBlock += analysisData.nrTGates * distillationWidth * distillationHeight;
 
-    echo("unused distillation volume: " + unusedDistillationBlock, "stats");
+    echoCommands.echo("unused distillation volume: " + unusedDistillationBlock, "stats");
 
-    echo("estimated used plumbing pieces: " + (volume - unusedDistillationBlock), "stats");
-}
-
-function echo(msg, elementId)
-{
-    var txtField = null;
-    if(elementId == undefined)
-    {
-        txtField = toolParameters.textAreas["circuit"];
-//            document.getElementById("circuit");
-    }
-    else
-    {
-        txtField = toolParameters.textAreas[elementId];
-//            document.getElementById(elementId);
-    }
-
-    if(msg == undefined)
-    {
-        txtField.value = "";
-    }
-    else
-    {
-        txtField.value += msg + "\n";
-    }
-
-    //aici adauga la gateList
-    if(msg != undefined && elementId == undefined && msg[0] != '#')
-    {
-        //if not the default (circuit) then do not add to gateList
-        gateList.push(msg);
-    }
+    echoCommands.echo("estimated used plumbing pieces: " + (volume2 - unusedDistillationBlock), "stats");
 }
 
 /*
@@ -217,36 +202,33 @@ function fromOrderNrToQubitNr(ordernr, nrLogQubits)
 	return nrLogQubits - 1 - ordernr;
 }
 
-function writeFileHeader(nrvars, where)
-{
-    //clear
-    echo(undefined, where);
-
-    //write header
-    echo(".nrVars " + nrvars, where);
-	echo("in " + "-".repeat(nrvars), where);
-	echo("out " + "-".repeat(nrvars), where);
-}
-
 </script>
 </head>
 
 <body>
-<div style="width:40vw; height:100vh; float:left;">
+<div style="width:40vw; height:1000vh; float:left;">
+<div style="background-color: darkred">
     <select id="circuitgenerator" onchange="otherCircuitSelected()">
         <option value="qrom">QROM</option>
         <option value="majorana">Majorana</option>
         <!--<option value="chemistry2">Chemistry2</option>-->
         <option value="adder">Adder</option>
     </select>
-
+    Parameters:
+<br>
+<!--
     Nr Log Qubits (log_2 N): <input id="nrq" value="2" size="3" type="number" min=2 onchange="pressGenerate()">
 <br>
     TOTAL Q Night: <input id="totalqubitsnight" value="2" size="3" type="number" min=2">
 <br>
     MU Night: <input id="munight" value="0" size="3" type="number" min=0">
 <br>
-    Max avail. distilled A: <input id="nrMaxAvailable" value="0" size="3" type="number" min=0 onchange="pressGenerate()">
+-->
+    <div id="paramsDiv"></div>
+</div>
+
+<div style="background-color: darkgreen">
+Max avail. distilled A: <input id="nrMaxAvailable" value="0" size="3" type="number" min=0 onchange="pressGenerate()">
 <br>
 <input type=checkbox id=reorderwires onclick="pressGenerate()">Reorder wires based on first usage</input>
 <br>
@@ -309,8 +291,9 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
         <br>
         <canvas id="analysisChart" width="200" height="100"></canvas>
     </div>
-
 </div>
+</div>
+
 <script>
     function pressDecompose()
     {

@@ -2,24 +2,60 @@
  * Generate a total control circuit
  * @param maxIndex
  */
-function generateTotalControl(maxIndex /*K*/, nrControls, nrDataQubits) {
-    //resets the global array. Not good.
-    gateList = [];
 
-    writeFileHeader(toolParameters.nrVars);
+function QROMGenerator()
+{
+    this.toolParameters = null;
+}
+
+QROMGenerator.prototype.getParameters = function()
+{
+    var params = {};
+
+    params["nrLogQubits"] = ["Nr. Qubits", 2];
+    params["muNight"] = ["Parameter MU", 0];
+    params["totalQubitsNight"] = ["Total Qubits", 2];
+
+    return params;
+}
+
+QROMGenerator.prototype.adaptParameterValues = function(readParams)
+{
+    var adaptedParameters = {};
+
+    adaptedParameters.nrLogQubits = readParams.nrLogQubits;
+    adaptedParameters.muNight = readParams.muNight;
+    adaptedParameters.totalQubitsNight = readParams.totalQubitsNight;
+
+    adaptedParameters.nrLogQubits *= 1.5;//inmultirea asta este din cauza formulei sa fie comparabil cu majorana
+
+    adaptedParameters.nrQubits = Math.ceil(Math.log2(adaptedParameters.nrLogQubits));
+    adaptedParameters.nrControls = 2 * adaptedParameters.nrQubits + 1;
+    adaptedParameters.nrDataQubits = adaptedParameters.nrQubits + adaptedParameters.muNight;
+    adaptedParameters.nrVars = adaptedParameters.totalQubitsNight;
+
+    return adaptedParameters;
+}
+
+QROMGenerator.prototype.generateTotalControl = function(parameterValues){//, maxIndex /*K*/, nrControls, nrDataQubits) {
+
+    var gatePl = new GatePlacer(this.toolParameters);
+
+    //TODO: nrVars
+    gatePl.writeFileHeader(parameterValues.nrVars);
 
     var controlIndex = 0;
 
     //how many l qubits one needs for applying
     //controlled operations on maxIndex logical qubits
-    var smallLQubits = Math.ceil(Math.log2(maxIndex));
+    var smallLQubits = Math.ceil(Math.log2(parameterValues.nrLogQubits));
     //var nrControls = smallLQubits + 1;//because of the control qubit +1
 
-    for (var i = 0; i < maxIndex; i++) {
+    for (var i = 0; i < parameterValues.nrLogQubits; i++) {
         var binary = binaryRepresentation(i, smallLQubits);
 
-        var gate = constructEmptyUnscheduledGate();
-        gate.gateType = "C_" + nrControls + "_" + maxIndex;
+        var gate = new UnscheduledGate();
+        gate.gateType = "C_" + parameterValues.nrControls + "_" + parameterValues.nrLogQubits;
         // gate.gateType = "C_" + ((nrControls-1)/2) + "_" + nrDataQubits;
 
         gate.wires.push(controlIndex);
@@ -29,7 +65,7 @@ function generateTotalControl(maxIndex /*K*/, nrControls, nrDataQubits) {
             //TODO: Da-i un numar
             var nextControl = 1 + j;
             if (binary[j] == 0) {
-                nextControl = negateWire(nextControl);
+                nextControl = WireUtils.negateWire(nextControl);
             }
             gate.wires.push(nextControl);
         }
@@ -44,30 +80,31 @@ function generateTotalControl(maxIndex /*K*/, nrControls, nrDataQubits) {
         }
 
         //gateList.push(toStringUnscheduledGate(gate));
-        echo(toStringUnscheduledGate(gate));
+        gatePl.echoCommands.echo(gate.toString());
     }
 
-    console.log(gateList.length);
+    //console.log(gateList.length);
+    return gatePl.echoCommands.gateList;
 }
 
-function deleteNegativeControls(nGateList)
+QROMGenerator.prototype.deleteNegativeControls = function(nGateList)
 {
     var ret = nGateList;
 
-    var gate = parseUnscheduledGateString(nGateList[nGateList.length - 1]);
+    var gate = UnscheduledGate.parseUnscheduledGateString(nGateList[nGateList.length - 1]);
 
     var originalWires = gate.wires.slice();
 
     for(var i=0; i<originalWires.length; i++)
     {
-        if(isNegatedWire(originalWires[i])) {
+        if(WireUtils.isNegatedWire(originalWires[i])) {
 
             // gate.wires.splice(i, 1);
             // ret[nGateList.length - 1] = toStringUnscheduledGate(gate);
 
             //check if the following gates have this negated wire too
             for (var j = nGateList.length - 2; j >= 3; j--) {
-                var gate2 = parseUnscheduledGateString(nGateList[j]);
+                var gate2 = UnscheduledGate.parseUnscheduledGateString(nGateList[j]);
 
                 //does this gate include the same negated wire?
                 var indexFound = gate2.wires.indexOf(originalWires[i]);
@@ -79,7 +116,7 @@ function deleteNegativeControls(nGateList)
                     break;
                 }
 
-                ret[j] = toStringUnscheduledGate(gate2);
+                ret[j] = gate2.toString();
             }
 
             //remove from the current gate
@@ -93,20 +130,19 @@ function deleteNegativeControls(nGateList)
         }
     }
 
-    ret[nGateList.length - 1] = toStringUnscheduledGate(gate);
+    ret[nGateList.length - 1] = gate.toString();
 
     return ret;
 }
 
-function decomposeToKAndU(nGateList)
+QROMGenerator.prototype.decomposeToKAndU = function(nGateList, parameterValues)
 {
-    gateList = [];
-
-    writeFileHeader(toolParameters.nrVars);
+    var gatePl = new GatePlacer(this.toolParameters);
+    gatePl.writeFileHeader(parameterValues.nrVars);
 
     var controlIndex = 0;
 
-    var nrBits = Math.ceil(Math.log2(toolParameters.nrLogQubits));
+    var nrBits = Math.ceil(Math.log2(parameterValues.nrLogQubits));
 
     var rep = [];
     rep.push(controlIndex);
@@ -115,14 +151,14 @@ function decomposeToKAndU(nGateList)
 
     //TODO: this is error
     var cxTargets = [];
-    for(var i=0; i<toolParameters.nrDataQubits; i++)
+    for(var i=0; i<parameterValues.nrDataQubits; i++)
     {
-        cxTargets.push(toolParameters.nrControls + i);
+        cxTargets.push(parameterValues.nrControls + i);
     }
 
     for(var i=3; i<nGateList.length; i++)
     {
-        var wires = parseUnscheduledGateString(nGateList[i]).wires;//get the gate control wires
+        var wires = UnscheduledGate.parseUnscheduledGateString(nGateList[i]).wires;//get the gate control wires
 
         //is this still the control wire?
         // var prevControl = rep[0];//wires[0];//this is the control wire?
@@ -137,17 +173,17 @@ function decomposeToKAndU(nGateList)
             var ka = rep[j];
             var kb = wires[j];
             // var kt = rep[j + 1];
-            var kt = rep[eliminateWireNegation(kb)];
+            var kt = rep[WireUtils.eliminateWireNegation(kb)];
 
             var localDelay = 0;//-1;
             var whichDecomposition = 0;//toolParameters.decomposeCliffordT ? 1 : 0;
-            placeK(ka, kb, kt, whichDecomposition, localDelay);
+            gatePl.placeK(ka, kb, kt, whichDecomposition, localDelay);
         }
 
         //the control from the last rep to the qubits
         var cxDelay = 0;
         // placeCX(rep[rep.length - 1], cxTargets, cxDelay);
-        placeCX(rep[eliminateWireNegation(wires[wires.length - 1])], cxTargets, cxDelay);
+        gatePl.placeCX(rep[WireUtils.eliminateWireNegation(wires[wires.length - 1])], cxTargets, cxDelay);
 
         //sequence of U gates
         //first wire is the control qubit
@@ -156,13 +192,15 @@ function decomposeToKAndU(nGateList)
             var ka = rep[j];
             var kb = wires[j];
             //var kt = rep[j + 1];
-            var kt = rep[eliminateWireNegation(kb)];
+            var kt = rep[WireUtils.eliminateWireNegation(kb)];
 
             var localDelay = 0;//-1;
             var whichDecomposition = 0;//toolParameters.decomposeCliffordT ? 1 : 0;
-            placeU(ka, kb, kt, whichDecomposition, localDelay);
+            gatePl.placeU(ka, kb, kt, whichDecomposition, localDelay);
         }
     }
+
+    return gatePl.echoCommands.gateList;
 }
 
 /**
@@ -170,7 +208,7 @@ function decomposeToKAndU(nGateList)
  * @param nGateList
  * @returns {boolean} true if the template was applied at least once. false otherwise.
  */
-function simplifyWithTemplates(nGateList)
+QROMGenerator.prototype.simplifyWithTemplates = function(nGateList)
 {
     // do not use zero for templates
     // actually for wires it should not be used either
@@ -228,38 +266,43 @@ function simplifyWithTemplates(nGateList)
 
     var applied = true;
 
+    var gateTemp = new GateTemplates()
     while( applied )
     {
         applied = false;
         for (var i = 0; i < templates.length; i++) {
-           applied = applied || applyTemplate(nGateList, templates[i][0], templates[i][1]);
+           applied = applied || gateTemp.applyTemplate(nGateList, templates[i][0], templates[i][1]);
         }
     }
 
     return nGateList;
 }
 
-function generateQROM2Circuit()
+QROMGenerator.prototype.generateCircuit = function(tmpParameterValues, tp)
 {
-    generateTotalControl(toolParameters.nrLogQubits,
-        toolParameters.nrControls,
-        toolParameters.nrDataQubits);
+    this.toolParameters = tp;
 
-    var gl1 = deleteNegativeControls(gateList);
+    var parameterValues = this.adaptParameterValues(tmpParameterValues);
+
+    var localGateList = this.generateTotalControl(parameterValues);
+        // toolParameters.nrLogQubits,
+        // toolParameters.nrControls,
+        // toolParameters.nrDataQubits);
+
+    var gl1 = this.deleteNegativeControls(localGateList);
     //  gateList = gl1;//doing this invalidates the raw circ printed in the textarea
     //
     // return;
 
-    // var gl2 =
-    decomposeToKAndU(gl1);
+    var gl2 = this.decomposeToKAndU(gl1, parameterValues);
     //gateList = gl2;//doing this invalidates the raw circ printed in the textarea
 
-    var gl3 = simplifyWithTemplates(gateList);
+    var gl3 = this.simplifyWithTemplates(gl2);
 
-    gateList = [];
-    writeFileHeader(toolParameters.nrVars);
+    var gatePl = new GatePlacer(this.toolParameters);
+    gatePl.writeFileHeader(parameterValues.nrVars);
 
-    if(toolParameters.decomposeCliffordT)
+    if(this.toolParameters.decomposeCliffordT)
     {
         //the previous version decomposed in placeGate
         //and it was too soon
@@ -267,9 +310,9 @@ function generateQROM2Circuit()
         var wasCXBefore = false;
         for(var i=3; i<gl3.length; i++)
         {
-            var gate = parseUnscheduledGateString(gl3[i]);
+            var gate = UnscheduledGate.parseUnscheduledGateString(gl3[i]);
             for(var wi=0; wi<gate.wires.length; wi++)
-                gate.wires[wi] = eliminateWireNegation(gate.wires[wi]);
+                gate.wires[wi] = WireUtils.eliminateWireNegation(gate.wires[wi]);
 
             switch(gate.gateType)
             {
@@ -277,13 +320,13 @@ function generateQROM2Circuit()
                     var delay = -1;
                     if(i==3)
                         delay = 0;
-                    placeK(gate.wires[1], gate.wires[0], gate.wires[2], 1, delay);
+                    gatePl.placeK(gate.wires[1], gate.wires[0], gate.wires[2], 1, delay);
                     break;
                 case "U":
                     var delay = -1;
                     if(wasCXBefore)
                         delay = 0;
-                    placeU(gate.wires[1], gate.wires[0], gate.wires[2], 1, delay);
+                    gatePl.placeU(gate.wires[1], gate.wires[0], gate.wires[2], 1, delay);
 
                     wasCXBefore = false;
                     break;
@@ -294,7 +337,7 @@ function generateQROM2Circuit()
 
                     var control = gate.wires[0];
                     gate.wires.splice(0, 1);
-                    placeCX(control, gate.wires, delay);
+                    gatePl.placeCX(control, gate.wires, delay);
 
                     wasCXBefore = true;
                     break;
@@ -306,118 +349,118 @@ function generateQROM2Circuit()
         //rewrite the gateList
         for(var i=3; i<gl3.length; i++)
         {
-            echo(gl3[i]);
+            gatePl.echoCommands.echo(gl3[i]);
         }
     }
 
-    return gateList;
+    return gatePl.echoCommands.gateList;
 }
 
-function generateQROMCircuit()
-{
-    //empty previous existing gate list
-    gateList = [];
-
-    var txtField = document.getElementById("circuit");
-    txtField.value = "";
-    /*
-     Prepare the indices for the wires
-     */
-
-    var lIndices = new Array();
-    var repIndices = new Array();
-    var qubIndices = new Array();
-    var controlIndex = toolParameters.nrLogQubits;
-
-    for(var i=0; i<toolParameters.nrLogQubits; i++)
-    {
-        /*reversed order e.g. ... 2, 1, 0*/
-        lIndices[i] = fromQubitNrToOrderNr(i, toolParameters.nrLogQubits);;
-        repIndices[i] = toolParameters.nrLogQubits + 1 + fromQubitNrToOrderNr(i, toolParameters.nrLogQubits);
-    }
-    //add control as repIndices of nrLogQubits, because this one is used
-    //for a CNOT
-    repIndices[toolParameters.nrLogQubits] = controlIndex;
-
-    for(var i=0; i<toolParameters.nrQubits; i++)
-    {
-        qubIndices[i] = 2 * toolParameters.nrLogQubits + 1 + i;
-    }
-
-    writeFileHeader(toolParameters.nrVars);
-
-    //make iterative instead of recursive
-    //to simplify output to gate list
-
-    for(var gateIndex = 0; gateIndex < toolParameters.nrQubits; gateIndex++)
-    {
-        //maximum number of C-Y is gateIndex
-        var binaryRep = binaryRepresentation(gateIndex, toolParameters.nrLogQubits);
-        echo ("#------ " + binaryRep);
-
-
-        //CNOT //primul 1 // target pe index, si control pe index - 1
-        var idx = firstRightToLeftWithValue(1, binaryRep);
-        if(idx != -1)
-        {
-            if(idx != binaryRep.length)
-            {
-                //modify idx to represent
-                idx = fromOrderNrToQubitNr(idx, toolParameters.nrLogQubits);
-
-                var delayCX = 0;
-                if(toolParameters.decomposeCliffordT && idx > 0)
-                    delayCX = -1;
-                placeCX(repIndices[idx + 1], [repIndices[idx]], delayCX);
-            }
-        }
-
-
-        //K gates // pana la primul 1
-        var kLocs = allRightToLeftWithValue(0, binaryRep);
-        kLocs.reverse();
-        // X lIndices[idx]
-        // K lIndices[idx] controlIndex repIndices[index]
-        for(var kIndex in kLocs)
-        {
-            var nkIndex = fromOrderNrToQubitNr(kLocs[kIndex], toolParameters.nrLogQubits);
-
-            var ka = lIndices[nkIndex];
-            var kb = repIndices[nkIndex + 1];
-            var kt = repIndices[nkIndex];
-
-            var whichDecomposition = toolParameters.decomposeCliffordT ? 1 : 0;
-
-            var localDelay = -1;
-            if(gateIndex == 0 && ka == 0)
-                localDelay = 0;
-            placeK(ka, kb, kt, whichDecomposition, localDelay);
-        }
-
-        //new circuit - place CX
-        //this is where the CX are placed
-        //their shape depends on the index of the gates
-
-        var cxtargets2 = [];
-        var cxcontrol = repIndices[0];
-        for(var cxi = 0; cxi < toolParameters.nrQubits; cxi++)
-            cxtargets2.push(qubIndices[cxi]);
-        placeCX(cxcontrol, cxtargets2);
-
-        //U gates // pana la primul 0
-        var uLocs = allRightToLeftWithValue(1, 	binaryRep);
-        // U lIndices[idx] controlIndex repIndices[index]
-        for(var kIndex in uLocs)
-        {
-            var nkIndex = fromOrderNrToQubitNr(uLocs[kIndex], toolParameters.nrLogQubits);
-            var ka = lIndices[nkIndex];
-            var kb = repIndices[nkIndex + 1];
-            var kt = repIndices[nkIndex];
-
-            var localDelay = -1;
-            if(nkIndex == 0)
-                localDelay = 0;
-            placeU (ka, kb, kt, toolParameters.decomposeCliffordT ? 1 : 0, localDelay);
-        }
-    }
-}
+// QROMGenerator.prototype.generateQROMGenerator = function()
+// {
+//     //empty previous existing gate list
+//     gateList = [];
+//
+//     var txtField = document.getElementById("circuit");
+//     txtField.value = "";
+//     /*
+//      Prepare the indices for the wires
+//      */
+//
+//     var lIndices = new Array();
+//     var repIndices = new Array();
+//     var qubIndices = new Array();
+//     var controlIndex = toolParameters.nrLogQubits;
+//
+//     for(var i=0; i<toolParameters.nrLogQubits; i++)
+//     {
+//         /*reversed order e.g. ... 2, 1, 0*/
+//         lIndices[i] = fromQubitNrToOrderNr(i, toolParameters.nrLogQubits);;
+//         repIndices[i] = toolParameters.nrLogQubits + 1 + fromQubitNrToOrderNr(i, toolParameters.nrLogQubits);
+//     }
+//     //add control as repIndices of nrLogQubits, because this one is used
+//     //for a CNOT
+//     repIndices[toolParameters.nrLogQubits] = controlIndex;
+//
+//     for(var i=0; i<toolParameters.nrQubits; i++)
+//     {
+//         qubIndices[i] = 2 * toolParameters.nrLogQubits + 1 + i;
+//     }
+//
+//     writeFileHeader(toolParameters.nrVars);
+//
+//     //make iterative instead of recursive
+//     //to simplify output to gate list
+//
+//     for(var gateIndex = 0; gateIndex < toolParameters.nrQubits; gateIndex++)
+//     {
+//         //maximum number of C-Y is gateIndex
+//         var binaryRep = binaryRepresentation(gateIndex, toolParameters.nrLogQubits);
+//         echo ("#------ " + binaryRep);
+//
+//
+//         //CNOT //primul 1 // target pe index, si control pe index - 1
+//         var idx = firstRightToLeftWithValue(1, binaryRep);
+//         if(idx != -1)
+//         {
+//             if(idx != binaryRep.length)
+//             {
+//                 //modify idx to represent
+//                 idx = fromOrderNrToQubitNr(idx, toolParameters.nrLogQubits);
+//
+//                 var delayCX = 0;
+//                 if(toolParameters.decomposeCliffordT && idx > 0)
+//                     delayCX = -1;
+//                 placeCX(repIndices[idx + 1], [repIndices[idx]], delayCX);
+//             }
+//         }
+//
+//
+//         //K gates // pana la primul 1
+//         var kLocs = allRightToLeftWithValue(0, binaryRep);
+//         kLocs.reverse();
+//         // X lIndices[idx]
+//         // K lIndices[idx] controlIndex repIndices[index]
+//         for(var kIndex in kLocs)
+//         {
+//             var nkIndex = fromOrderNrToQubitNr(kLocs[kIndex], toolParameters.nrLogQubits);
+//
+//             var ka = lIndices[nkIndex];
+//             var kb = repIndices[nkIndex + 1];
+//             var kt = repIndices[nkIndex];
+//
+//             var whichDecomposition = toolParameters.decomposeCliffordT ? 1 : 0;
+//
+//             var localDelay = -1;
+//             if(gateIndex == 0 && ka == 0)
+//                 localDelay = 0;
+//             placeK(ka, kb, kt, whichDecomposition, localDelay);
+//         }
+//
+//         //new circuit - place CX
+//         //this is where the CX are placed
+//         //their shape depends on the index of the gates
+//
+//         var cxtargets2 = [];
+//         var cxcontrol = repIndices[0];
+//         for(var cxi = 0; cxi < toolParameters.nrQubits; cxi++)
+//             cxtargets2.push(qubIndices[cxi]);
+//         placeCX(cxcontrol, cxtargets2);
+//
+//         //U gates // pana la primul 0
+//         var uLocs = allRightToLeftWithValue(1, 	binaryRep);
+//         // U lIndices[idx] controlIndex repIndices[index]
+//         for(var kIndex in uLocs)
+//         {
+//             var nkIndex = fromOrderNrToQubitNr(uLocs[kIndex], toolParameters.nrLogQubits);
+//             var ka = lIndices[nkIndex];
+//             var kb = repIndices[nkIndex + 1];
+//             var kt = repIndices[nkIndex];
+//
+//             var localDelay = -1;
+//             if(nkIndex == 0)
+//                 localDelay = 0;
+//             placeU (ka, kb, kt, toolParameters.decomposeCliffordT ? 1 : 0, localDelay);
+//         }
+//     }
+// }

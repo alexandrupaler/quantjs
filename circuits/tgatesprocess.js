@@ -4,7 +4,7 @@ function oneTGatePerTimeStep(tmpGateList)
 
     for(var i=0; i<tmpGateList.length; i++)
     {
-        var parsedGate = parseUnscheduledGateString(tmpGateList[i]);
+        var parsedGate = UnscheduledGate.parseUnscheduledGateString(tmpGateList[i]);
 
         if(parsedGate.gateType[0] == 't')
         {
