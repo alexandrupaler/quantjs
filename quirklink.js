@@ -1,22 +1,67 @@
-//var quirkLink = "http://algassert.com/quirk#";
-var quirkLink = "quirk-big-circuits.html#"
+function QuirkLink()
+{
 
-var otherGatesJSON = ",\"gates\":[{\"id\":\"~fp6j\",\"name\":\"iA\",\"matrix\":\"{{0,1},{1,0}}\"},{\"id\":\"~3mtv\",\"name\":\"M+\",\"matrix\":\"{{0,1},{1,0}}\"}]";
+}
+
+QuirkLink.quirkLink = "quirk-big-circuits.html#";
+
+// the character used by quirk for control
+QuirkLink.initABasisString = "~fp6j";
+QuirkLink.measXBasisString = "~3mtv";
+QuirkLink.controlString = "\u2022";
+QuirkLink.antiControlString = "\u25E6";
+QuirkLink.tGateString = "Z^\u00BC";
+QuirkLink.pGateString = "Z^\u00BD";
+QuirkLink.vGateString = "X^\u00BD";
+QuirkLink.xGateString = "X";
+QuirkLink.hGateString = "H";
+
+QuirkLink.otherGates = undefined;
+
+//var quirkLink = "http://algassert.com/quirk#";
+
+//var otherGatesJSON = ",\"gates\":[{\"id\":\"~fp6j\",\"name\":\"iA\",\"matrix\":\"{{0,1},{1,0}}\"},{\"id\":\"~3mtv\",\"name\":\"M+\",\"matrix\":\"{{0,1},{1,0}}\"}]";
 //http://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,%22X%22],[%22inputA1%22,%22inputB1%22,%22+=AB1%22]]}
 //"gates":[{"id":"~fp6j","name":"iA","matrix":"{{0,1},{1,0}}"},{"id":"~3mtv","name":"M+","matrix":"{{0,1},{1,0}}"}]}
 
-// the character used by quirk for control
-var initABasisString = "~fp6j";
-var measXBasisString = "~3mtv";
-var controlString = "\u2022";
-var antiControlString = "\u25E6";
-var tGateString = "Z^\u00BC";
-var pGateString = "Z^\u00BD";
-var vGateString = "X^\u00BD";
-var xGateString = "X";
-var hGateString = "H";
+QuirkLink.cleanOtherGatesJSON = function()
+{
+    this.otherGates = {gates : []};
 
-function addEmptyCircuitColumn(circuit, localNrVars)
+    this.addGateToOtherGatesJSON("~fp6j", "iA");
+    this.addGateToOtherGatesJSON("~3mtv", "M+");
+}
+
+QuirkLink.generateOtherGatesJSON = function()
+{
+    var ret = JSON.stringify(this.otherGates);
+
+    return "," + ret.substring(1, ret.length - 1);
+}
+
+QuirkLink.addGateToOtherGatesJSON = function(id, name)
+{
+    var ngate = {id : id,
+        name: name,
+        matrix : "{{0,1},{1,0}}"//dummy matrix for the moment
+    };
+
+    //check that the matrix id is not in the collection
+
+    if( ! this.otherGates.gates.find(function(f){ return f.id == ngate.id}))
+    {
+        this.otherGates.gates.push(ngate);
+    }
+}
+
+QuirkLink.addRotationToOtherGatesJSON = function(piFraction)
+{
+    this.addGateToOtherGatesJSON("~r" + piFraction, "R" + piFraction);
+
+    return "~r" + piFraction;
+}
+
+QuirkLink.addEmptyCircuitColumn = function (circuit, localNrVars)
 {
     var nc = new Array();
     for(var j = 0; j < localNrVars; j++)
@@ -25,13 +70,13 @@ function addEmptyCircuitColumn(circuit, localNrVars)
     circuit.push(nc);
 }
 
-function checkCircuitLengthAndCorrect(circuit, required, localNrVars)
+QuirkLink.checkCircuitLengthAndCorrect = function(circuit, required, localNrVars)
 {
     if(circuit.length <= required)
     {
         var dif = required - circuit.length + 1;
         for(var i=0; i<dif; i++)
-            addEmptyCircuitColumn(circuit, localNrVars);
+            this.addEmptyCircuitColumn(circuit, localNrVars);
     }
 }
 
@@ -56,7 +101,7 @@ function arrangeDecomposedCircuit(nGateList)
 
         var scheduledGate = new ScheduledGate();
         scheduledGate.timeStep = timeStep;
-        scheduledGate.gateType = parsedGate.gateType[0];
+        scheduledGate.gateType = parsedGate.gateType;//[0];
 
         for(var j=0; j<parsedGate.wires.length; j++)
         {
@@ -65,7 +110,7 @@ function arrangeDecomposedCircuit(nGateList)
 
         switch (parsedGate.gateType[0]) {
             case "c":
-                scheduledGate.gateType = "c";
+                //scheduledGate.gateType = "c";
                 break;
             case "p":
                 break;
@@ -86,7 +131,7 @@ function arrangeDecomposedCircuit(nGateList)
             case "U":
                 break;
             case "C":
-                scheduledGate.gateType = parsedGate.gateType;
+                //scheduledGate.gateType = parsedGate.gateType;
                 break;
         }
 
@@ -177,16 +222,17 @@ function scheduleGateList(nGateList, nrTGates)
 }
 
 
-function constructQuirkLink(nGateList, analysisData)
+QuirkLink.constructQuirkLink = function(nGateList, analysisData)
 {
+    this.cleanOtherGatesJSON();
+
     var returnObj = [];
-    returnObj.link = quirkLink;
+    returnObj.link = this.quirkLink;
 
     var circuit = new Array();
 
     //the same trick with reading the number of vars from the first line
     var localNrVars = Number(nGateList[0].split(" ")[1]);
-
 
     //first three are file header
     for (var i = 3; i < nGateList.length; i++)
@@ -197,7 +243,7 @@ function constructQuirkLink(nGateList, analysisData)
             continue;
 
         if(!toolParameters.noVisualisation)
-            checkCircuitLengthAndCorrect(circuit, parsedGate.timeStep, localNrVars);
+            this.checkCircuitLengthAndCorrect(circuit, parsedGate.timeStep, localNrVars);
 
         if(parsedGate.gateType[0] == 'K' || parsedGate.gateType[0] == 'U')
         {
@@ -214,17 +260,18 @@ function constructQuirkLink(nGateList, analysisData)
         }
         else if(parsedGate.gateType[0] == 'C')
         {
+            /*
+            This is used in QROM, and I do not modify it for the time being
+             */
             var nsplit = parsedGate.gateType.split("_");
             var nr1 = Number(nsplit[1]);
             var nr2 = Number(nsplit[2]);
 
-            console.log(nsplit + " " + nr1 + " " + nr2);
-
             for(var ci=0; ci<nr1; ci++) {
                 var wire = parsedGate.wires[ci];
-                var qComm = controlString;
+                var qComm = this.controlString;
                 if(WireUtils.isNegatedWire(wire)) {
-                    qComm = antiControlString;
+                    qComm = this.antiControlString;
                     // wire = eliminateWireNegation(wire);
                 }
                 circuit[parsedGate.timeStep][WireUtils.eliminateWireNegation(wire)] = qComm;//"dec1"
@@ -236,6 +283,38 @@ function constructQuirkLink(nGateList, analysisData)
                 circuit[parsedGate.timeStep][getWireNumber(ci)] = "X";
             }
         }
+        else if(parsedGate.gateType[0] == 'Z')
+        {
+            /*
+             This is used in QFTAdder
+             */
+            var nsplit = parsedGate.gateType.split("_");
+            var nr1 = Number(nsplit[1]);
+            var nr2 = Number(nsplit[2]);
+            var nr3 = Number(nsplit[3]);//the pi fraction
+
+            var rotId = this.addRotationToOtherGatesJSON(nr3);
+
+            console.log("---> " + parsedGate.gateType + ", " + nr1 + " " + nr2 + " " + nr3);
+
+            for(var ci=0; ci<nr1; ci++) {
+                //aici lipseste getWireNumber?
+                var wire = parsedGate.wires[ci];
+                var qComm = this.controlString;
+                if(WireUtils.isNegatedWire(wire)) {
+                    qComm = this.antiControlString;
+                    wire = WireUtils.eliminateWireNegation(wire);
+                }
+                circuit[parsedGate.timeStep][getWireNumber(wire)] = qComm;//"dec1"
+            }
+
+            //after rep qubits
+            var targetsStart = nr1;
+            for(var ci=targetsStart; ci<parsedGate.wires.length; ci++) {
+                var wire = parsedGate.wires[ci];
+                circuit[parsedGate.timeStep][getWireNumber(wire)] = rotId;
+            }
+        }
         else
         {
             var quirkGateType = "";
@@ -244,27 +323,27 @@ function constructQuirkLink(nGateList, analysisData)
                 case "c":
                     var ctr = getWireNumber(Number(parsedGate.wires[0]));
                     if(!toolParameters.noVisualisation)
-                        circuit[parsedGate.timeStep][ctr] = controlString;
+                        circuit[parsedGate.timeStep][ctr] = this.controlString;
                     quirkGateType = "X";//allow only CX for the moment
                     fromWhere = 1;
                     break;
                 case "p":
-                    quirkGateType = pGateString;
+                    quirkGateType = this.pGateString;
                     break;
                 case "h":
-                    quirkGateType = hGateString;
+                    quirkGateType = this.hGateString;
                     break;
                 case "t":
-                    quirkGateType = tGateString;
+                    quirkGateType = this.tGateString;
                     break;
                 case "v":
-                    quirkGateType = vGateString;
+                    quirkGateType = this.vGateString;
                     break;
                 case "a"/*"ix"*/:
-                    quirkGateType = initABasisString;
+                    quirkGateType = this.initABasisString;
                     break;
                 case "m"/*"mx"*/:
-                    quirkGateType = measXBasisString;
+                    quirkGateType = this.measXBasisString;
                     break;
             }
 
@@ -284,11 +363,11 @@ function constructQuirkLink(nGateList, analysisData)
     if(!toolParameters.noVisualisation)
     {
         if(toolParameters.decomposeCliffordT && toolParameters.distillAndConsumeTStates)
-            insertDistillationSpacers(circuit,
+            this.insertDistillationSpacers(circuit,
                 toolParameters.distillationLength,
                 analysisData.nrTGates);
-        cleanUselessOnes(circuit);
-        returnObj.link += "circuit={\"cols\":" + JSON.stringify(circuit) + otherGatesJSON + "}";
+        this.cleanUselessOnes(circuit);
+        returnObj.link += "circuit={\"cols\":" + JSON.stringify(circuit) + this.generateOtherGatesJSON() + "}";
     }
     else
     {
@@ -298,7 +377,7 @@ function constructQuirkLink(nGateList, analysisData)
     return returnObj;
 }
 
-function cleanUselessOnes(circuit)
+QuirkLink.cleanUselessOnes = function(circuit)
 {
     for(var i=0; i<circuit.length; i++)
     {
@@ -317,7 +396,7 @@ function cleanUselessOnes(circuit)
     }
 }
 
-function insertDistillationSpacers(circuit, distance, nrTGates)
+QuirkLink.insertDistillationSpacers = function(circuit, distance, nrTGates)
 {
     for(var i=0; i<aStatesData.separators.length; i++)
     {
@@ -344,7 +423,7 @@ function insertDistillationSpacers(circuit, distance, nrTGates)
     }
 }
 
-function removeDistillationSpacers(circuit)
+QuirkLink.removeDistillationSpacers = function(circuit)
 {
     var nrVars = -1;
     /*
@@ -363,8 +442,10 @@ function removeDistillationSpacers(circuit)
     return nrVars;
 }
 
-//TODO: actualizeaza la OO
-function parseLink()
+/*
+    Does not handle custom gates and adding them to the dictionary
+ */
+QuirkLink.parseLink = function()
 {
     /*
      works only for Clifford + T
@@ -387,13 +468,14 @@ function parseLink()
 
     //now I have the circuit
     //remove the spacers
-    var nNrVars = removeDistillationSpacers(circuit);
+    var nNrVars = this.removeDistillationSpacers(circuit);
     //console.log(circuit);
     console.log(nNrVars);
 
-    gateList = [];
-    writeFileHeader(nNrVars);
+    // gateList = [];
+    // writeFileHeader(nNrVars);
 
+    var gatePl = new GatePlacer(toolParameters);
 
     var nrTimeSlices = circuit.length;
     console.log(nrTimeSlices);
@@ -416,28 +498,28 @@ function parseLink()
             {
                 case 1:
                     break;
-                case controlString:
+                case this.controlString:
                     controlPosition = j;
                     break;
-                case xGateString:
+                case this.xGateString:
                     xTargets.push(j);
                     break;
-                case tGateString:
+                case this.tGateString:
                     tGates.push(j);
                     break;
-                case pGateString:
+                case this.pGateString:
                     pGates.push(j);
                     break;
-                case hGateString:
+                case this.hGateString:
                     hGates.push(j);
                     break;
-                case vGateString:
+                case this.vGateString:
                     vGates.push(j);
                     break;
-                case initABasisString:
+                case this.initABasisString:
                     initX.push(j);
                     break;
-                case measXBasisString:
+                case this.measXBasisString:
                     measX.push(j);
                     break;
             }
@@ -446,28 +528,28 @@ function parseLink()
         if(controlPosition != -1)
         {
             //there is CX
-            placeCX(controlPosition, xTargets);
+            gatePl.placeCX(controlPosition, xTargets);
         }
 
         //do not introduce corrections for the T gate
         //because I am assuming these are already in circuit
-        placeT(false, tGates);
-        placeGate("p", pGates);
-        placeGate("h", hGates);
-        placeGate("v", vGates);
-        placeGate("ix", initX);
-        placeGate("mx", measX);
+        gatePl.placeT(false, tGates);
+        gatePl.placeGate("p", pGates);
+        gatePl.placeGate("h", hGates);
+        gatePl.placeGate("v", vGates);
+        gatePl.placeGate("ix", initX);
+        gatePl.placeGate("mx", measX);
     }
 
-    constructQuirkLink();
+    this.constructQuirkLink();
     console.log(document.getElementById("quirkLink").value == backUpLink);
 }
 
-function getLinkFromIFrame()
+QuirkLink.getLinkFromIFrame = function()
 {
     var tmp = decodeURIComponent(document.getElementById("quirkiframe").contentWindow.location.href);
 
-    var idx = tmp.indexOf(quirkLink);
+    var idx = tmp.indexOf(this.quirkLink);
     if(idx > 0)
     {
         tmp = tmp.substr(idx);
@@ -476,7 +558,7 @@ function getLinkFromIFrame()
     document.getElementById("quirkLink").value = tmp;
 }
 
-function setLink(event)
+QuirkLink.setLink = function(event)
 {
     document.getElementById("quirkiframe").contentWindow.location.href = decodeURIComponent(event.currentTarget.href);
 
@@ -488,20 +570,20 @@ function setLink(event)
     return false;
 }
 
-function deleteFromMemory(id)
+QuirkLink.deleteFromMemory = function(id)
 {
     var elem = document.getElementById(id);
     elem.parentNode.removeChild(elem);
 }
 
 
-function saveToMemory()
+QuirkLink.saveToMemory = function()
 {
     var link = document.getElementById("quirkLink").value;
     var linkid = "saved" + Date.now();
     var msg = "<div id=\"" +  linkid+ "\">";
-    msg += "<a onclick=\"setLink(event)\" href=\"" + encodeURIComponent(link) + "\">" + linkid + "</a>";
-    msg += "<span onclick=deleteFromMemory(\"" + linkid + "\") style=\"cursor:pointer\">[X]</span>";
+    msg += "<a onclick=\"QuirkLink.setLink(event)\" href=\"" + encodeURIComponent(link) + "\">" + linkid + "</a>";
+    msg += "<span onclick=QuirkLink.deleteFromMemory(\"" + linkid + "\") style=\"cursor:pointer\">[X]</span>";
     msg += "</div>";
 
     document.getElementById("Memory").innerHTML += msg;

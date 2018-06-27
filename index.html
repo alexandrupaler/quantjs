@@ -16,9 +16,11 @@
     <script src="circuits/template.js"></script>
     <script src="circuits/gatestring.js"></script>
     <script src="circuits/tgatesprocess.js"></script>
+
     <script src="circuits/chemcircuit.js"></script>
     <script src="circuits/addercircuit.js"></script>
     <script src="circuits/qrom.js"></script>
+    <script src="circuits/qftadder.js"></script>
 
     <script src="tabs.js"></script>
     <script src="astateconsume.js"></script>
@@ -69,6 +71,9 @@ function pressGenerate()
             case "adder":
                 currentGenerator = new AdderGenerator();
                 break;
+            case "qftadder":
+                currentGenerator = new QFTAdderGenerator();
+                break;
         }
 
         //write the html for the parameters
@@ -114,7 +119,7 @@ function pressGenerate()
     var analysisData = analyseCircuit(schedlist, toolParameters.lookAhead);
 
     if(!toolParameters.noVisualisation) {
-        var obj = constructQuirkLink(schedlist, analysisData);
+        var obj = QuirkLink.constructQuirkLink(schedlist, analysisData);
 
         echoCommands.clear("quirkLink");
         echoCommands.echo(obj.link, "quirkLink");
@@ -213,6 +218,7 @@ function fromOrderNrToQubitNr(ordernr, nrLogQubits)
         <option value="majorana">Majorana</option>
         <!--<option value="chemistry2">Chemistry2</option>-->
         <option value="adder">Adder</option>
+        <option value="qftadder">QFT Adder</option>
     </select>
     Parameters:
 <br>
@@ -276,14 +282,14 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
         <textarea id="quirkLink" cols="60" rows="20">nothing copied&pasted
         </textarea>
         <br>
-        <input id=btnParse type=button value="Parse" onclick="parseLink()">
-        <input id=btnGIF type=button value="Get From Frame" onclick="getLinkFromIFrame()">
-        <input id=btnSave type=button value="Save To Memory" onclick="saveToMemory()">
+        <input id=btnParse type=button value="Parse" onclick="QuirkLink.parseLink()">
+        <input id=btnGIF type=button value="Get From Frame" onclick="QuirkLink.getLinkFromIFrame()">
+        <input id=btnSave type=button value="Save To Memory" onclick="QuirkLink.saveToMemory()">
     </div>
 
     <div id="Memory" class="tabcontent">
         Saved Quirk Links:<br>
-        <input type="button" value="Get and Save To Memory" onclick="getLinkFromIFrame(); saveToMemory()"><br>
+        <input type="button" value="Get and Save To Memory" onclick="QuirkLink.getLinkFromIFrame(); QuirkLink.saveToMemory()"><br>
     </div>
 
     <div id="Chart" class="tabcontent">

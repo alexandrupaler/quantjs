@@ -43,6 +43,15 @@ GatePlacer.prototype.placeGate = function(type, qubits, delay)
     this.echoCommands.echo(msg);
 }
 
+GatePlacer.prototype.placeControlledRotationXGate = function(piFraction, controls, targets, delay)
+{
+    var type2 = "Z_" + controls.length + "_" + targets.length + "_" + piFraction;
+
+    var qubits = controls.concat(targets);
+
+    this.placeGate(type2, qubits, delay);
+}
+
 /*
   Used for T gate
 */
