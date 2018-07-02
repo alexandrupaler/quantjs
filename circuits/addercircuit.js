@@ -1,8 +1,8 @@
-function AdderGenerator()
+function GidneyAdderGenerator()
 {
 }
 
-AdderGenerator.prototype.getParameters = function()
+GidneyAdderGenerator.prototype.getParameters = function()
 {
     var params = {};
 
@@ -12,7 +12,7 @@ AdderGenerator.prototype.getParameters = function()
 }
 
 
-AdderGenerator.prototype.adaptParameterValues = function(readParams)
+GidneyAdderGenerator.prototype.adaptParameterValues = function(readParams)
 {
     var adaptedParameters = {};
 
@@ -24,7 +24,7 @@ AdderGenerator.prototype.adaptParameterValues = function(readParams)
     return adaptedParameters;
 }
 
-AdderGenerator.prototype.generateCircuit = function(tmpParameterValues, toolParameters)
+GidneyAdderGenerator.prototype.generateCircuit = function(tmpParameterValues, toolParameters)
 {
     var parameterValues = this.adaptParameterValues(tmpParameterValues);
 

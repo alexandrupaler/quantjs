@@ -21,6 +21,7 @@
     <script src="circuits/addercircuit.js"></script>
     <script src="circuits/qrom.js"></script>
     <script src="circuits/qftadder.js"></script>
+    <script src="circuits/cuccaroadder.js"></script>
 
     <script src="tabs.js"></script>
     <script src="astateconsume.js"></script>
@@ -69,10 +70,13 @@ function pressGenerate()
                 currentGenerator = new QROMGenerator();
                 break;
             case "adder":
-                currentGenerator = new AdderGenerator();
+                currentGenerator = new GidneyAdderGenerator();
                 break;
             case "qftadder":
                 currentGenerator = new QFTAdderGenerator();
+                break;
+            case "cuccaro":
+                currentGenerator = new CuccaroAdderGenerator();
                 break;
         }
 
@@ -217,8 +221,9 @@ function fromOrderNrToQubitNr(ordernr, nrLogQubits)
         <option value="qrom">QROM</option>
         <option value="majorana">Majorana</option>
         <!--<option value="chemistry2">Chemistry2</option>-->
-        <option value="adder">Adder</option>
+        <option value="adder">Gidney Adder</option>
         <option value="qftadder">QFT Adder</option>
+        <option value="cuccaro">Cuccaro Adder</option>
     </select>
     Parameters:
 <br>

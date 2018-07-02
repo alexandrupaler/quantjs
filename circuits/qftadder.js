@@ -61,7 +61,7 @@ QFTAdderGenerator.prototype.generateCircuit = function(tmpParameterValues, toolP
         for(var j=i + 1; j<params.nrLogQubits + 1; j++)
         {
             fraction++;
-            gatePl.placeControlledRotationXGate(fraction, [ positions.a[j] ], [ positions.a[i] ]);
+            gatePl.placeControlledRotationGate("Z", fraction, [ positions.a[j] ], [ positions.a[i] ]);
         }
     }
 
@@ -79,7 +79,7 @@ QFTAdderGenerator.prototype.generateCircuit = function(tmpParameterValues, toolP
             if(j == -1)
                 continue;
 
-            gatePl.placeControlledRotationXGate(fraction, [ positions.b[j] ], [ positions.a[i] ]);
+            gatePl.placeControlledRotationGate("Z", fraction, [ positions.b[j] ], [ positions.a[i] ]);
         }
     }
 
@@ -88,11 +88,11 @@ QFTAdderGenerator.prototype.generateCircuit = function(tmpParameterValues, toolP
      */
     for(var i=params.nrLogQubits; i>=0; i--)
     {
-        var fraction = 1;
+        var fraction = params.nrLogQubits - i + 2;
         for(var j=params.nrLogQubits; j >= i + 1; j--)
         {
-            fraction++;
-            gatePl.placeControlledRotationXGate(-fraction, [ positions.a[j] ], [ positions.a[i] ]);
+            fraction--;
+            gatePl.placeControlledRotationGate("Z", -fraction, [ positions.a[j] ], [ positions.a[i] ]);
         }
         gatePl.placeGate("h", [ positions.a[i] ]);
     }

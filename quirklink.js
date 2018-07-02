@@ -10,6 +10,7 @@ QuirkLink.initABasisString = "~fp6j";
 QuirkLink.measXBasisString = "~3mtv";
 QuirkLink.controlString = "\u2022";
 QuirkLink.antiControlString = "\u25E6";
+QuirkLink.eightGateString = "Z^\u215B";
 QuirkLink.tGateString = "Z^\u00BC";
 QuirkLink.pGateString = "Z^\u00BD";
 QuirkLink.vGateString = "X^\u00BD";
@@ -54,11 +55,61 @@ QuirkLink.addGateToOtherGatesJSON = function(id, name)
     }
 }
 
-QuirkLink.addRotationToOtherGatesJSON = function(piFraction)
+QuirkLink.addRotationToOtherGatesJSON = function(piFraction, pauliName)
 {
-    this.addGateToOtherGatesJSON("~r" + piFraction, "R" + piFraction);
+    if(pauliName == undefined)
+        pauliName = "Z";
 
-    return "~r" + piFraction;
+    var newId = undefined;
+    var newName = undefined;
+
+    switch(Math.abs(piFraction))
+    {
+        case 1:
+            newId = "Z";
+            break;
+        case 2:
+            newId = QuirkLink.pGateString;
+            break;
+        case 3:
+            newId = QuirkLink.tGateString;
+            break;
+        case 4:
+            newId = QuirkLink.eightGateString;
+            break;
+        default:
+            newId = "Z^\u215F" + Math.pow(2, Math.abs(piFraction))/2;
+            newName = newId;
+            break;
+    }
+
+    //Negative Rotations
+    if(piFraction < 0)
+    {
+        newId = newId.replace("^", "^-");
+    }
+
+    /*
+     The strings stored in QuirkLink are for Z
+     It is possible to replace them to get a different Pauli fraction rotation
+     */
+    if(pauliName != "Z")
+    {
+        console.log("quirk replace: " + newId);
+        newId = newId.replace("Z", pauliName);
+    }
+
+    /*
+        This gate does not exist in Quirk
+     */
+    if (newName != undefined)
+    {
+        newName = newId;//maybe it was changed before
+        newId = "~" + newId;
+        this.addGateToOtherGatesJSON(newId, newName);
+    }
+
+    return newId;
 }
 
 QuirkLink.addEmptyCircuitColumn = function (circuit, localNrVars)
@@ -283,7 +334,7 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData)
                 circuit[parsedGate.timeStep][getWireNumber(ci)] = "X";
             }
         }
-        else if(parsedGate.gateType[0] == 'Z')
+        else if(parsedGate.gateType[0] == 'X' || parsedGate.gateType[0] == 'Y' || parsedGate.gateType[0] == 'Z')
         {
             /*
              This is used in QFTAdder
@@ -293,12 +344,11 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData)
             var nr2 = Number(nsplit[2]);
             var nr3 = Number(nsplit[3]);//the pi fraction
 
-            var rotId = this.addRotationToOtherGatesJSON(nr3);
 
-            console.log("---> " + parsedGate.gateType + ", " + nr1 + " " + nr2 + " " + nr3);
+            var rotId = this.addRotationToOtherGatesJSON(nr3, parsedGate.gateType[0]+"");
 
-            for(var ci=0; ci<nr1; ci++) {
-                //aici lipseste getWireNumber?
+            for(var ci=0; ci<nr1; ci++)
+            {
                 var wire = parsedGate.wires[ci];
                 var qComm = this.controlString;
                 if(WireUtils.isNegatedWire(wire)) {

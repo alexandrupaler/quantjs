@@ -43,9 +43,9 @@ GatePlacer.prototype.placeGate = function(type, qubits, delay)
     this.echoCommands.echo(msg);
 }
 
-GatePlacer.prototype.placeControlledRotationXGate = function(piFraction, controls, targets, delay)
+GatePlacer.prototype.placeControlledRotationGate = function(pauliName, piFraction, controls, targets, delay)
 {
-    var type2 = "Z_" + controls.length + "_" + targets.length + "_" + piFraction;
+    var type2 = pauliName.toUpperCase() + "_" + controls.length + "_" + targets.length + "_" + piFraction;
 
     var qubits = controls.concat(targets);
 
