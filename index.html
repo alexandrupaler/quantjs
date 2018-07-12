@@ -9,6 +9,8 @@
     <script src="libs/Chart.min.js"></script>
     <script src="gui/generatorparameters.js"></script>
     <script src="gui/echocommands.js"></script>
+    <script src="gui/reorderwires.js"></script>
+
     <script src="toolparameters.js"></script>
 
     <script src="circuits/wireutils.js"></script>
@@ -25,7 +27,6 @@
 
     <script src="tabs.js"></script>
     <script src="astateconsume.js"></script>
-    <script src="reorderwires.js"></script>
     <script src="binarytools.js"></script>
     <script src="quirklink.js"></script>
     <script src="gatesslider.js"></script>
@@ -36,13 +37,10 @@
 //TODO: fa sa dispara asta care arata global
 var currentGenerator = null;
 var echoCommands = new EchoCommands(toolParameters);
+var wireOrder = new WireOrder();
 
 function otherCircuitSelected()
 {
-    //reset number of qubits
-    //because some circuits exponentiate this number
-    //document.getElementById("nrq").value = "2";
-
     currentGenerator = null;
 
     pressGenerate();
@@ -57,6 +55,7 @@ function pressGenerate()
     echoCommands.echo(undefined, "stats");
     echoCommands.echo("computing...", "stats");
 
+    var aNewGeneratorWasSelected = (currentGenerator == null);
     if (currentGenerator == null) {
 
         switch (toolParameters.circuitGenerator) {
@@ -80,7 +79,7 @@ function pressGenerate()
                 break;
         }
 
-        //write the html for the parameters
+        //write the HTML for the parameters
         document.getElementById("paramsDiv").innerHTML = genParam.generateHTML(currentGenerator.getParameters());
     }
 
@@ -99,7 +98,35 @@ function pressGenerate()
         ngatelist = gateList;
     }
 
-    computeFirstWireUsage(ngatelist);
+    //The following three are button actions
+    if(wireOrder.resetFlag)
+    {
+        wireOrder.resetOrder(ngatelist);
+    }
+    else if(wireOrder.reorderFlag)
+    {
+        wireOrder.computeFirstWireUsage(ngatelist);
+    }
+    else if(wireOrder.swapFlag)
+    {
+        //swap
+        wireOrder.swapQubits();
+    }
+    else
+    {
+        //The default is to reset
+        wireOrder.resetOrder(ngatelist);
+    }
+    wireOrder.resetAllFlags();
+
+    //write the HTML for the wires swapper and configuration
+    var buttonNodes = wireOrder.generateButtonsHTML(pressSwap);
+    var buttonsContainer = document.getElementById("wireswapperdiv");
+    buttonsContainer.innerHTML = "";//clean all children
+    for(var ib = 0; ib < buttonNodes.length; ib++)
+    {
+        buttonsContainer.appendChild(buttonNodes[ib]);
+    }
 
     var schedlist = arrangeDecomposedCircuit(ngatelist);
 
@@ -123,7 +150,7 @@ function pressGenerate()
     var analysisData = analyseCircuit(schedlist, toolParameters.lookAhead);
 
     if(!toolParameters.noVisualisation) {
-        var obj = QuirkLink.constructQuirkLink(schedlist, analysisData);
+        var obj = QuirkLink.constructQuirkLink(schedlist, analysisData, wireOrder);
 
         echoCommands.clear("quirkLink");
         echoCommands.echo(obj.link, "quirkLink");
@@ -153,6 +180,8 @@ function pressGenerate()
         aStatesData.nra,//.slice(0, distillationDepth + 1),
         analysisData.counts
     );
+
+    resetToolParameters();
 }
 
 function estimateBoundingBox(analysisData, aStatesData)
@@ -223,25 +252,16 @@ function fromOrderNrToQubitNr(ordernr, nrLogQubits)
         <!--<option value="chemistry2">Chemistry2</option>-->
         <option value="adder">Gidney Adder</option>
         <option value="qftadder">QFT Adder</option>
-        <option value="cuccaro">Cuccaro Adder</option>
+        <option value="cuccaro" selected="selected">Cuccaro Adder</option>
     </select>
     Parameters:
 <br>
-<!--
-    Nr Log Qubits (log_2 N): <input id="nrq" value="2" size="3" type="number" min=2 onchange="pressGenerate()">
-<br>
-    TOTAL Q Night: <input id="totalqubitsnight" value="2" size="3" type="number" min=2">
-<br>
-    MU Night: <input id="munight" value="0" size="3" type="number" min=0">
-<br>
--->
+
     <div id="paramsDiv"></div>
 </div>
 
 <div style="background-color: darkgreen">
 Max avail. distilled A: <input id="nrMaxAvailable" value="0" size="3" type="number" min=0 onchange="pressGenerate()">
-<br>
-<input type=checkbox id=reorderwires onclick="pressGenerate()">Reorder wires based on first usage</input>
 <br>
 <input type=checkbox id=decomposeCheckBox onclick="pressDecompose()">Decompose to Clifford+T</input>
 <br>
@@ -263,6 +283,7 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
         <button class="tablinks" onclick="openTab(event, 'Link')">Link</button>
         <button class="tablinks" onclick="openTab(event, 'Memory')">Memory</button>
         <button class="tablinks" onclick="openTab(event, 'Chart')">Chart</button>
+        <button class="tablinks" onclick="openTab(event, 'Wires')">Wires</button>
     </div>
 
     <!-- Tab content -->
@@ -302,10 +323,37 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
         <br>
         <canvas id="analysisChart" width="200" height="100"></canvas>
     </div>
+
+    <div id="Wires" class="tabcontent">
+        <input type=button id=reorderwires onclick='pressReorderWires()' value="Reorder wires based on first usage"></input>
+        <br>
+        <input type=button id=resetwires onclick='pressResetWires()' value="Reset wire order"></input>
+        <br>
+        The following order is used. Change by clicking pairs to swap.
+        <div id="wireswapperdiv"></div>
+    </div>
 </div>
 </div>
 
 <script>
+    function pressReorderWires()
+    {
+        wireOrder.reorderFlag = true;
+        pressGenerate();
+    }
+
+    function pressResetWires()
+    {
+        wireOrder.resetFlag = true;
+        pressGenerate();
+    }
+
+    function pressSwap()
+    {
+        wireOrder.swapFlag = true;
+        pressGenerate();
+    }
+
     function pressDecompose()
     {
         document.getElementById('btnParse').disabled = !document.getElementById('decomposeCheckBox').checked;
@@ -329,6 +377,7 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
 </div>
 
 <script>
+    resetToolParameters();
     pressGenerate();
     document.getElementById("defaultOpen").click();
 </script>

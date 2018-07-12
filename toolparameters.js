@@ -1,19 +1,24 @@
 var toolParameters = [];
 
-toolParameters.decomposeCliffordT = false;
-toolParameters.reorderWires = false;
-toolParameters.distillAndConsumeTStates = false;
-toolParameters.oneTGatePerTimestep = false;
-toolParameters.distillationLength = 3;
+function resetToolParameters()
+{
+    toolParameters.decomposeCliffordT = false;
+    toolParameters.distillAndConsumeTStates = false;
+    toolParameters.oneTGatePerTimestep = false;
+    toolParameters.distillationLength = 3;
 
-toolParameters.nrLogQubits = 0;//number of log qubits used for controlling the logical qubits
-toolParameters.nrQubits = 0;// number of logical qubits in the circuit
-toolParameters.nrVars = 0;// total number of wires in circuit
-toolParameters.lookAhead = 0;//look ahead for the analysis of T gates
+    // toolParameters.reorderWires = false;
+    // toolParameters.resetWires = false;
 
-toolParameters.circuitGenerator = "";
+    toolParameters.nrLogQubits = 0;//number of log qubits used for controlling the logical qubits
+    toolParameters.nrQubits = 0;// number of logical qubits in the circuit
+    toolParameters.nrVars = 0;// total number of wires in circuit
+    toolParameters.lookAhead = 0;//look ahead for the analysis of T gates
 
-toolParameters.textAreas = {};
+    toolParameters.circuitGenerator = "";
+
+    toolParameters.textAreas = {};
+}
 
 function readToolParameters()
 {
@@ -26,7 +31,7 @@ function readToolParameters()
     toolParameters.circuitGenerator = document.getElementById("circuitgenerator").value;
 
     toolParameters.decomposeCliffordT = document.getElementById("decomposeCheckBox").checked;
-    toolParameters.reorderWires = document.getElementById("reorderwires").checked;
+    // toolParameters.reorderWires = document.getElementById("reorderwires").checked;
     toolParameters.distillAndConsumeTStates = document.getElementById("distillandconsume").checked;
     toolParameters.oneTGatePerTimestep = document.getElementById("onetpertime").checked;
     toolParameters.noVisualisation = document.getElementById("novisual").checked;
@@ -76,5 +81,4 @@ function readToolParameters()
     //     toolParameters.nrQubits = 3 * (toolParameters.nrLogQubits - 1 ) + 2;
     //     toolParameters.nrVars = toolParameters.nrQubits;
     // }
-
 }

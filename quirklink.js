@@ -273,8 +273,11 @@ function scheduleGateList(nGateList, nrTGates)
 }
 
 
-QuirkLink.constructQuirkLink = function(nGateList, analysisData)
+QuirkLink.constructQuirkLink = function(nGateList, analysisData, wireOrder)
 {
+    //incerc sa il fac totusi sa fie independent de wireOrder?
+    //si sa existe ceva anonim? - deocamdata nu.
+
     this.cleanOtherGatesJSON();
 
     var returnObj = [];
@@ -298,9 +301,9 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData)
 
         if(parsedGate.gateType[0] == 'K' || parsedGate.gateType[0] == 'U')
         {
-            var a1 = getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[0])));
-            var b1 = getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[1])));
-            var ab1 = getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[2])));
+            var a1 = wireOrder.getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[0])));
+            var b1 = wireOrder.getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[1])));
+            var ab1 = wireOrder.getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[2])));
 
             if(!toolParameters.noVisualisation)
             {
@@ -331,7 +334,7 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData)
             //after rep qubits
             var afterRepQ = nr1 + nr1 - 1;
             for(var ci=afterRepQ; ci<afterRepQ + nr2; ci++) {
-                circuit[parsedGate.timeStep][getWireNumber(ci)] = "X";
+                circuit[parsedGate.timeStep][wireOrder.getWireNumber(ci)] = "X";
             }
         }
         else if(parsedGate.gateType[0] == 'X' || parsedGate.gateType[0] == 'Y' || parsedGate.gateType[0] == 'Z')
@@ -355,14 +358,14 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData)
                     qComm = this.antiControlString;
                     wire = WireUtils.eliminateWireNegation(wire);
                 }
-                circuit[parsedGate.timeStep][getWireNumber(wire)] = qComm;//"dec1"
+                circuit[parsedGate.timeStep][wireOrder.getWireNumber(wire)] = qComm;//"dec1"
             }
 
             //after rep qubits
             var targetsStart = nr1;
             for(var ci=targetsStart; ci<parsedGate.wires.length; ci++) {
                 var wire = parsedGate.wires[ci];
-                circuit[parsedGate.timeStep][getWireNumber(wire)] = rotId;
+                circuit[parsedGate.timeStep][wireOrder.getWireNumber(wire)] = rotId;
             }
         }
         else
@@ -371,7 +374,7 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData)
             var fromWhere = 0;
             switch (parsedGate.gateType[0]) {
                 case "c":
-                    var ctr = getWireNumber(Number(parsedGate.wires[0]));
+                    var ctr = wireOrder.getWireNumber(Number(parsedGate.wires[0]));
                     if(!toolParameters.noVisualisation)
                         circuit[parsedGate.timeStep][ctr] = this.controlString;
                     quirkGateType = "X";//allow only CX for the moment
@@ -399,7 +402,7 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData)
 
             for(var kk = fromWhere; kk < parsedGate.wires.length; kk++)
             {
-                var tgt = getWireNumber(Number(parsedGate.wires[kk]));
+                var tgt = wireOrder.getWireNumber(Number(parsedGate.wires[kk]));
 
                 if(!toolParameters.noVisualisation)
                 {
