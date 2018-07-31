@@ -8,6 +8,29 @@ function resetAnalysisData(analysisData)
     analysisData.timesteps = 0;
 }
 
+function returnAnalysisAsCSV(steps, nra, analysis)
+{
+    var ret = "step,#A,Look#A\n";
+
+    if(steps != undefined && nra != undefined && analysis != undefined) {
+        for (var i = 0; i < steps.length; i++) {
+            var line = i + ",";
+
+            if (i < nra.length)
+                line += nra[i] + ",";
+            else
+                line += ",";
+
+            if (i < analysis.length)
+                line += analysis[i];
+
+            ret += line + "\n";
+        }
+    }
+
+    return ret;
+}
+
 function chartAnalysisData(steps, nra, analysis)
 {
     if(analysisChart != null) {

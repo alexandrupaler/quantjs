@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="styles.css">
 
     <script src="libs/Chart.min.js"></script>
+    <script src="libs/PalerDownload.js"></script>
+
     <script src="gui/generatorparameters.js"></script>
     <script src="gui/echocommands.js"></script>
     <script src="gui/reorderwires.js"></script>
@@ -38,6 +40,7 @@
 var currentGenerator = null;
 var echoCommands = new EchoCommands(toolParameters);
 var wireOrder = new WireOrder();
+var csvAnalysis = "";
 
 function otherCircuitSelected()
 {
@@ -176,6 +179,12 @@ function pressGenerate()
     document.getElementById("gateslider").value = 1;
 
     chartAnalysisData(
+        analysisData.steps,
+        aStatesData.nra,//.slice(0, distillationDepth + 1),
+        analysisData.counts
+    );
+
+    csvAnalysis = returnAnalysisAsCSV(
         analysisData.steps,
         aStatesData.nra,//.slice(0, distillationDepth + 1),
         analysisData.counts
@@ -321,7 +330,9 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
     <div id="Chart" class="tabcontent">
         Look ahead:<input type="number" id="lookahead" min=0 onchange="pressGenerate()" value="0">
         <br>
-        <canvas id="analysisChart" width="200" height="100"></canvas>
+        <input type="button" value="Download CSV" onclick="downloadChartCSV()">
+        <br>
+        <canvas id="analysisChart" width="200" height="100" style="background-color: white"></canvas>
     </div>
 
     <div id="Wires" class="tabcontent">
@@ -336,6 +347,16 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
 </div>
 
 <script>
+    function downloadChartCSV()
+    {
+        /*
+            In this version, the csv is precomputed
+         */
+        var csvData = csvAnalysis;
+
+        downloadFile("chartanalysis.csv", csvData);
+    }
+
     function pressReorderWires()
     {
         wireOrder.reorderFlag = true;
