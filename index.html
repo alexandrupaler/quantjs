@@ -324,7 +324,9 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
 
     <div id="Memory" class="tabcontent">
         Saved Quirk Links:<br>
-        <input type="button" value="Get and Save To Memory" onclick="QuirkLink.getLinkFromIFrame(); QuirkLink.saveToMemory()"><br>
+        <input type="button" value="Get and Save To Memory" onclick="QuirkLink.getLinkFromIFrame(); QuirkLink.saveToMemory()">
+        <br>
+        <input type="button" value="Download Memory" onclick="downloadMemory()">
     </div>
 
     <div id="Chart" class="tabcontent">
@@ -347,6 +349,12 @@ Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textb
 </div>
 
 <script>
+    function downloadMemory()
+    {
+        var allLinksFromMemory = QuirkLink.getAllLinksFromMemory();
+        downloadFile("memory.txt", allLinksFromMemory);
+    }
+
     function downloadChartCSV()
     {
         /*

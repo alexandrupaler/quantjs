@@ -641,3 +641,19 @@ QuirkLink.saveToMemory = function()
 
     document.getElementById("Memory").innerHTML += msg;
 }
+
+/*
+    Used for saving to file
+ */
+QuirkLink.getAllLinksFromMemory = function()
+{
+    return document.getElementById("Memory").innerHTML;
+}
+
+/*
+    Used for loading from file
+ */
+QuirkLink.reloadIntoMemory = function(memory)
+{
+    document.getElementById("Memory").innerHTML = memory;
+}
