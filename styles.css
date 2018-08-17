@@ -45,3 +45,27 @@
     border: 1px solid #ccc;
     border-top: none;
 }
+
+hr {
+    color: sienna;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.menu {
+    position: relative;
+    z-index: 100;
+    background-color: red;
+    width: 500px;
+    height: 30px;
+    top: 0px;
+    left: 300px;
+    font-size: 12px;
+}
+
+h1 {
+    font-size: 1em;
+}

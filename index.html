@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html><head>
-<meta http-equiv="content-type" content="text/html; charset=UTF-8">
-<meta charset="UTF-8">
+<html>
+
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="UTF-8">
     <title>Generate Circuits</title>
 
     <link rel="stylesheet" href="styles.css">
 
-    <script src="libs/Chart.min.js"></script>
-    <script src="libs/PalerDownload.js"></script>
+    <script src="visualisation/Chart.min.js"></script>
+    <script src="visualisation/PalerDownload.js"></script>
 
     <script src="gui/generatorparameters.js"></script>
     <script src="gui/echocommands.js"></script>
@@ -27,389 +29,642 @@
     <script src="circuits/qftadder.js"></script>
     <script src="circuits/cuccaroadder.js"></script>
 
-    <script src="tabs.js"></script>
+    <script src="gui/tabs.js"></script>
+    <script src="gui/visualisationoptions.js"></script>
+
     <script src="astateconsume.js"></script>
     <script src="binarytools.js"></script>
     <script src="quirklink.js"></script>
     <script src="gatesslider.js"></script>
     <script src="circuitanalysis.js"></script>
 
-<script>
+    <!-- From the WebGL Visualisation part -->
+    <script src="localscript.js"></script>
+    <script src="helperfunctions.js"></script>
 
-//TODO: fa sa dispara asta care arata global
-var currentGenerator = null;
-var echoCommands = new EchoCommands(toolParameters);
-var wireOrder = new WireOrder();
-var csvAnalysis = "";
+    <script src="visualisation/libs/jquery-1.12.0.min.js"></script>
+    <script src="visualisation/libs/three.js"></script>
+    <script src="visualisation/libs/SVGRenderer.js"></script>
+    <script src="visualisation/libs/Projector.js"></script>
+    <script src="visualisation/libs/CanvasRenderer.js"></script>
+    <script src="visualisation/libs/Detector.js"></script>
+    <script src="visualisation/libs/BoxGeometry.js"></script>
+    <script src="visualisation/libs/TrackballControls.js"></script>
+    <script src="visualisation/libs/PalerBoxBufferGeometry.js"></script>
+    <script src="visualisation/libs/stats.js"></script>
 
-function otherCircuitSelected()
-{
-    currentGenerator = null;
+    <script src="visualisation/webglvisualiser.js"></script>
+    <script src="gui/visualisationoptions.js"></script>
 
-    pressGenerate();
-}
+    <script>
+        function createModule() {
+            /*
+            The emscripten module used to load the compiler
+            */
+            var Module = {
+                preRun: [],
 
-function pressGenerate()
-{
-    var genParam = new GeneratorParameters();
+                postRun: [],
 
-    readToolParameters();
+                print: (function () {
+                    var element = document.getElementById('output');
+                    return function (text) {
+                        element.value += text + "\n";
+                    };
+                })(),
 
-    echoCommands.echo(undefined, "stats");
-    echoCommands.echo("computing...", "stats");
+                /*
+                    The first visualisation() is called only after the module has finished loading
+                */
+                onRuntimeInitialized: function () {
+                    //pressGenerate();
+                    CompilationHelpers.startCompiled('circuitnew');
+                    startVisualisation();
+                },
 
-    var aNewGeneratorWasSelected = (currentGenerator == null);
-    if (currentGenerator == null) {
+                printErr: function (text) {
+                    if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+                    if (0) {
+                        dump(text + '\n');
+                    }
+                },
 
-        switch (toolParameters.circuitGenerator) {
-            case "majorana":
-                //generateMajoranaCircuit();
-//            currentGenerator = new QROMGenerator();
-                break;
-            case "qrom":
-//            generateQROMCircuit();
-//            generateQROM2Circuit();
-                currentGenerator = new QROMGenerator();
-                break;
-            case "adder":
-                currentGenerator = new GidneyAdderGenerator();
-                break;
-            case "qftadder":
-                currentGenerator = new QFTAdderGenerator();
-                break;
-            case "cuccaro":
-                currentGenerator = new CuccaroAdderGenerator();
-                break;
+                canvas: (function () {
+                    var canvas = document.getElementById('canvas');
+                    return canvas;
+                })(),
+
+                noInitialRun: true//,
+
+                //noExitRuntime: true
+            };
+
+            return Module;
         }
 
-        //write the HTML for the parameters
-        document.getElementById("paramsDiv").innerHTML = genParam.generateHTML(currentGenerator.getParameters());
-    }
+        var Module = createModule();
+    </script>
 
-    var paramValues = genParam.readHTMLValues(currentGenerator.getParameters());
-    var gateList = currentGenerator.generateCircuit(paramValues, toolParameters);
+    <!--
+        <script id="scripthello" src="emscripten/convertft.js">
+        </script>
+    -->
 
-    //mai exista un resetdata in astatesconsume
-    //resetAnalysisData();
-    var ngatelist = [];
-    if(toolParameters.oneTGatePerTimestep)
-    {
-        ngatelist = oneTGatePerTimeStep(gateList);
-    }
-    else
-    {
-        ngatelist = gateList;
-    }
+    <script>
+        /*
+            The visualisation objects
+        */
+        var visualisationDefects = new WebGLVisualiser();
+        var visualisationPlumb = new WebGLVisualiser();
 
-    //The following three are button actions
-    if(wireOrder.resetFlag)
-    {
-        wireOrder.resetOrder(ngatelist);
-    }
-    else if(wireOrder.reorderFlag)
-    {
-        wireOrder.computeFirstWireUsage(ngatelist);
-    }
-    else if(wireOrder.swapFlag)
-    {
-        //swap
-        wireOrder.swapQubits();
-    }
-    else
-    {
-        //The default is to reset
-        wireOrder.resetOrder(ngatelist);
-    }
-    wireOrder.resetAllFlags();
+        /*
+            Visualisation menues
+        */
+        var menuDefects = new VisualisationOptions();
+        menuDefects.addOptionAndCheckbox("drawBoxes", "menuDefectBoxesChk", [visualisationDefects.boxesGeometry]);
+        menuDefects.addOptionAndCheckbox("drawPrimals", "menuDefectPrimalChk", [visualisationDefects.primalGeometry, visualisationDefects.primalGeometry2]);
+        menuDefects.addOptionAndCheckbox("drawDuals", "menuDefectDualChk", [visualisationDefects.dualGeometry, visualisationDefects.dualGeometry2]);
 
-    //write the HTML for the wires swapper and configuration
-    var buttonNodes = wireOrder.generateButtonsHTML(pressSwap);
-    var buttonsContainer = document.getElementById("wireswapperdiv");
-    buttonsContainer.innerHTML = "";//clean all children
-    for(var ib = 0; ib < buttonNodes.length; ib++)
-    {
-        buttonsContainer.appendChild(buttonNodes[ib]);
-    }
+        var menuPlumb = new VisualisationOptions();
+        menuPlumb.addOptionAndCheckbox("drawUnitsPlumb", "plUnitsChk", [visualisationPlumb.plumbingUnits]);
+        menuPlumb.addOptionAndCheckbox("drawPrimalsPlumb", "plPrimalChk", [visualisationPlumb.plumbingPrimals]);
+        menuPlumb.addOptionAndCheckbox("drawDualsPlumb", "plDualChk", [visualisationPlumb.plumbingDuals]);
 
-    var schedlist = arrangeDecomposedCircuit(ngatelist);
+        var menuVisualisation = new VisualisationOptions();
+        menuVisualisation.addOptionAndCheckbox("enableQuirkView", "visQuirkBox");
+        menuVisualisation.addOptionAndCheckbox("enableDefectView", "visDefectBox");
+        menuVisualisation.addOptionAndCheckbox("enablePlumbView", "visPlumbBox");
 
-    if(toolParameters.distillAndConsumeTStates)
-    {
-        // make a first analysis to know how many T states need to be distilled
-        var nrTGates = analyseCircuit(schedlist, 0/*no look ahead*/).nrTGates;
-        schedlist = scheduleGateList(schedlist, nrTGates);
-    }
+        /*
+            Circuit generator objects
+        */
+        var currentGenerator = null;//should this object still look global?
+        var echoCommands = new EchoCommands(toolParameters);
+        var wireOrder = new WireOrder();
+        var csvAnalysis = "";
 
-    //unrolled the single qubit gates
-    echoCommands.clear("circuitnew");
-    for(var y=0; y<schedlist.length; y++)
-    {
-        echoCommands.echo(schedlist[y], "circuitnew");
-    }
+        function reloadEmscriptenModule() {
 
-    /*
-     analyse the circuit and plot the data resulting from the analysis
-     */
-    var analysisData = analyseCircuit(schedlist, toolParameters.lookAhead);
+            Module = createModule();
 
-    if(!toolParameters.noVisualisation) {
-        var obj = QuirkLink.constructQuirkLink(schedlist, analysisData, wireOrder);
+            var x = document.getElementById("scripthello");
+            if (x != undefined)
+                x.parentNode.removeChild(x);
 
-        echoCommands.clear("quirkLink");
-        echoCommands.echo(obj.link, "quirkLink");
+            var nx = document.createElement("script");
+            nx.src = "emscripten/convertft.js?cachebuster=" + new Date().getTime();
+            nx.id = "scripthello";
 
-        document.getElementById("quirkiframe").src = obj.link;
-    }
-    var distillationDepth = (analysisData.nrTGates * toolParameters.distillationLength);
+            document.getElementsByTagName('head')[0].appendChild(nx);
+        }
 
-    var localNrVars = Number(gateList[0].split(" ")[1]);
-    echoCommands.clear("stats");
-    echoCommands.echo("number wires " + localNrVars, "stats");
-    echoCommands.echo("current gate list length " + (gateList.length - 3), "stats");
-    echoCommands.echo("current circuit depth " + analysisData.timesteps, "stats");
-    echoCommands.echo("nr T gates "  + analysisData.nrTGates, "stats");
-    echoCommands.echo("single distillation depth " + toolParameters.distillationLength, "stats");
-    echoCommands.echo("total T distillations depth " + distillationDepth, "stats");
+        function startVisualisation() {
 
-    if(toolParameters.distillAndConsumeTStates)
-        estimateBoundingBox(analysisData, aStatesData);
+            var currentVisOptions = menuVisualisation.collectValues();
 
-    document.getElementById("gateslider").min = 1;
-    document.getElementById("gateslider").max = gateList.length - 3;
-    document.getElementById("gateslider").value = 1;
+            var currentView = Tabs.getOpenTabButton("view");
 
-    chartAnalysisData(
-        analysisData.steps,
-        aStatesData.nra,//.slice(0, distillationDepth + 1),
-        analysisData.counts
-    );
+            if (currentVisOptions["enableDefectView"].visible) {
+                document.getElementById("viewTabDefect").click();
+                visualisationDefects.start_defect_view(CompilationHelpers.graph1,
+                    CompilationHelpers.graph2,
+                    CompilationHelpers.graph3,
+                    CompilationHelpers.graph4,
+                    CompilationHelpers.boxes);
+            }
 
-    csvAnalysis = returnAnalysisAsCSV(
-        analysisData.steps,
-        aStatesData.nra,//.slice(0, distillationDepth + 1),
-        analysisData.counts
-    );
+            if (currentVisOptions["enablePlumbView"].visible) {
+                document.getElementById("viewTabPlumb").click();
+                visualisationPlumb.start_plumbing_view();
+            }
 
-    resetToolParameters();
-}
+            document.getElementById(currentView).click();
 
-function estimateBoundingBox(analysisData, aStatesData)
-{
-    var distillationHeight = 10;
-    var distillationDepth = 6;
-    var distillationWidth = 16;
+            /*
+                menu options
+            */
+            visualisationDefects.checkboxClick(menuDefects);
+            visualisationPlumb.checkboxClick(menuPlumb);
+        }
 
-    var mostAvailableDistilledAStates = aStatesData.nra.reduce(function(a, b) {
-        return Math.max(a, b);
-    });
+        function otherCircuitSelected() {
+            currentGenerator = null;
 
-    echoCommands.echo("\nEstimated bounding box (plumbing pieces):", "stats");
-    var totalDepth = analysisData.timesteps * 2;
-    echoCommands.echo("depth: " + totalDepth, "stats");
+            pressGenerate();
+        }
 
-    var totalWidth = Math.max(mostAvailableDistilledAStates * 2 + 1/*connection around the log qubit block*/,
-        distillationWidth);
-    echoCommands.echo("width: " + totalWidth, "stats");
+        function pressGenerate() {
+            var genParam = new GeneratorParameters();
 
-    var nrLogQubitsPerLine = Math.floor(distillationWidth / 2);
-    nrLogQubitsPerLine--;//take one out because some connections use a plumbing piece
+            readToolParameters();
 
-    var nrQubitLines = Math.ceil(toolParameters.nrVars / nrLogQubitsPerLine );
-    var totalHeight = nrQubitLines + 2 + distillationHeight;
-    echoCommands.echo("height: (" + (nrQubitLines +  2) + ") "+ totalHeight, "stats");
+            /*
+                Check which visualisations are enabled
+            */
+            var currentVisualisationOptions = menuVisualisation.collectValues();
 
-    var volume2 = totalHeight * totalWidth * totalDepth;
-    echoCommands.echo("volume_2: " + volume2, "stats");
+            echoCommands.echo(undefined, "stats");
+            echoCommands.echo("computing...", "stats");
 
-    var volume0 = (totalHeight - distillationHeight) * totalWidth * totalDepth;
-    echoCommands.echo("volume_0: " + volume0, "stats");
+            var aNewGeneratorWasSelected = (currentGenerator == null);
+            if (currentGenerator == null) {
 
-    var difference = analysisData.timesteps - analysisData.nrTGates * toolParameters.distillationLength;
-    var unusedDistillationBlock = 2 * difference * distillationWidth * distillationHeight;
-    unusedDistillationBlock += analysisData.nrTGates * distillationWidth * distillationHeight;
+                switch (toolParameters.circuitGenerator) {
+                    case "majorana":
+                        //generateMajoranaCircuit();
+                        //            currentGenerator = new QROMGenerator();
+                        break;
+                    case "qrom":
+                        //            generateQROMCircuit();
+                        //            generateQROM2Circuit();
+                        currentGenerator = new QROMGenerator();
+                        break;
+                    case "adder":
+                        currentGenerator = new GidneyAdderGenerator();
+                        break;
+                    case "qftadder":
+                        currentGenerator = new QFTAdderGenerator();
+                        break;
+                    case "cuccaro":
+                        currentGenerator = new CuccaroAdderGenerator();
+                        break;
+                }
 
-    echoCommands.echo("unused distillation volume: " + unusedDistillationBlock, "stats");
+                //write the HTML for the parameters
+                document.getElementById("paramsDiv").innerHTML = genParam.generateHTML(currentGenerator.getParameters());
+            }
 
-    echoCommands.echo("estimated used plumbing pieces: " + (volume2 - unusedDistillationBlock), "stats");
-}
+            var paramValues = genParam.readHTMLValues(currentGenerator.getParameters());
+            var gateList = currentGenerator.generateCircuit(paramValues, toolParameters);
 
-/*
-	... 0, 1, 2 -> ... 2, 1, 0
-*/
-function fromQubitNrToOrderNr(qubitnr, nrLogQubits)
-{
-	return nrLogQubits - 1 - qubitnr;
-}
+            //mai exista un resetdata in astatesconsume
+            //resetAnalysisData();
+            var ngatelist = [];
+            if (toolParameters.oneTGatePerTimestep) {
+                ngatelist = oneTGatePerTimeStep(gateList);
+            }
+            else {
+                ngatelist = gateList;
+            }
 
-/*
-	... 2, 1, 0 -> ... 0, 1, 2
-*/
-function fromOrderNrToQubitNr(ordernr, nrLogQubits)
-{
-	return nrLogQubits - 1 - ordernr;
-}
+            //The following three are button actions
+            if (wireOrder.resetFlag) {
+                wireOrder.resetOrder(ngatelist);
+            }
+            else if (wireOrder.reorderFlag) {
+                wireOrder.computeFirstWireUsage(ngatelist);
+            }
+            else if (wireOrder.swapFlag) {
+                //swap
+                wireOrder.swapQubits();
+            }
+            else {
+                //The default is to reset
+                wireOrder.resetOrder(ngatelist);
+            }
+            wireOrder.resetAllFlags();
 
-</script>
+            //write the HTML for the wires swapper and configuration
+            var buttonNodes = wireOrder.generateButtonsHTML(pressSwap);
+            var buttonsContainer = document.getElementById("wireswapperdiv");
+            buttonsContainer.innerHTML = "";//clean all children
+            for (var ib = 0; ib < buttonNodes.length; ib++) {
+                buttonsContainer.appendChild(buttonNodes[ib]);
+            }
+
+            /*
+                The wire ordering is changed at this point where
+                the circuit was decomposed....for the moment.
+            */
+
+            var schedlist = arrangeDecomposedCircuit(ngatelist, wireOrder);
+
+            if (toolParameters.distillAndConsumeTStates) {
+                // make a first analysis to know how many T states need to be distilled
+                var nrTGates = analyseCircuit(schedlist, 0/*no look ahead*/).nrTGates;
+                schedlist = scheduleGateList(schedlist, nrTGates);
+            }
+
+            //unrolled the single qubit gates
+            echoCommands.clear("circuitnew");
+            for (var y = 0; y < schedlist.length; y++) {
+                echoCommands.echo(schedlist[y], "circuitnew");
+            }
+
+            /*
+             analyse the circuit and plot the data resulting from the analysis
+             */
+            var analysisData = analyseCircuit(schedlist, toolParameters.lookAhead);
+
+            if (!toolParameters.noVisualisation || currentVisualisationOptions["enableQuirkView"].visible) {
+                var obj = QuirkLink.constructQuirkLink(schedlist, analysisData, wireOrder);
+
+                echoCommands.clear("quirkLink");
+                echoCommands.echo(obj.link, "quirkLink");
+
+                var currentViewTabButton = Tabs.getOpenTabButton("view");
+                document.getElementById("viewTabQuirk").click();
+                document.getElementById("quirkiframe").src = obj.link;
+                document.getElementById(currentViewTabButton).click();
+
+            }
+            var distillationDepth = (analysisData.nrTGates * toolParameters.distillationLength);
+
+            var localNrVars = Number(gateList[0].split(" ")[1]);
+            echoCommands.clear("stats");
+            echoCommands.echo("number wires " + localNrVars, "stats");
+            echoCommands.echo("current gate list length " + (gateList.length - 3), "stats");
+            echoCommands.echo("current circuit depth " + analysisData.timesteps, "stats");
+            echoCommands.echo("nr T gates " + analysisData.nrTGates, "stats");
+            echoCommands.echo("single distillation depth " + toolParameters.distillationLength, "stats");
+            echoCommands.echo("total T distillations depth " + distillationDepth, "stats");
+
+            if (toolParameters.distillAndConsumeTStates)
+                estimateBoundingBox(analysisData, aStatesData);
+
+            document.getElementById("gateslider").min = 1;
+            document.getElementById("gateslider").max = gateList.length - 3;
+            document.getElementById("gateslider").value = 1;
+
+            chartAnalysisData(
+                analysisData.steps,
+                aStatesData.nra,//.slice(0, distillationDepth + 1),
+                analysisData.counts
+            );
+
+            csvAnalysis = returnAnalysisAsCSV(
+                analysisData.steps,
+                aStatesData.nra,//.slice(0, distillationDepth + 1),
+                analysisData.counts
+            );
+
+            resetToolParameters();
+
+            /*
+                Update WebGL visualisation
+            */
+            if (currentVisualisationOptions["enableDefectView"].visible || currentVisualisationOptions["enablePlumbView"].visible) {
+                reloadEmscriptenModule();
+                // CompilationHelpers.startCompiled('circuitnew');
+                // startVisualisation();
+            }
+        }
+
+        function estimateBoundingBox(analysisData, aStatesData) {
+            var distillationHeight = 10;
+            var distillationDepth = 6;
+            var distillationWidth = 16;
+
+            var mostAvailableDistilledAStates = aStatesData.nra.reduce(function (a, b) {
+                return Math.max(a, b);
+            });
+
+            echoCommands.echo("\nEstimated bounding box (plumbing pieces):", "stats");
+            var totalDepth = analysisData.timesteps * 2;
+            echoCommands.echo("depth: " + totalDepth, "stats");
+
+            var totalWidth = Math.max(mostAvailableDistilledAStates * 2 + 1/*connection around the log qubit block*/,
+                distillationWidth);
+            echoCommands.echo("width: " + totalWidth, "stats");
+
+            var nrLogQubitsPerLine = Math.floor(distillationWidth / 2);
+            nrLogQubitsPerLine--;//take one out because some connections use a plumbing piece
+
+            var nrQubitLines = Math.ceil(toolParameters.nrVars / nrLogQubitsPerLine);
+            var totalHeight = nrQubitLines + 2 + distillationHeight;
+            echoCommands.echo("height: (" + (nrQubitLines + 2) + ") " + totalHeight, "stats");
+
+            var volume2 = totalHeight * totalWidth * totalDepth;
+            echoCommands.echo("volume_2: " + volume2, "stats");
+
+            var volume0 = (totalHeight - distillationHeight) * totalWidth * totalDepth;
+            echoCommands.echo("volume_0: " + volume0, "stats");
+
+            var difference = analysisData.timesteps - analysisData.nrTGates * toolParameters.distillationLength;
+            var unusedDistillationBlock = 2 * difference * distillationWidth * distillationHeight;
+            unusedDistillationBlock += analysisData.nrTGates * distillationWidth * distillationHeight;
+
+            echoCommands.echo("unused distillation volume: " + unusedDistillationBlock, "stats");
+
+            echoCommands.echo("estimated used plumbing pieces: " + (volume2 - unusedDistillationBlock), "stats");
+        }
+
+        /*
+            ... 0, 1, 2 -> ... 2, 1, 0
+        */
+        function fromQubitNrToOrderNr(qubitnr, nrLogQubits) {
+            return nrLogQubits - 1 - qubitnr;
+        }
+
+        /*
+            ... 2, 1, 0 -> ... 0, 1, 2
+        */
+        function fromOrderNrToQubitNr(ordernr, nrLogQubits) {
+            return nrLogQubits - 1 - ordernr;
+        }
+
+        /*
+            Set the visualisatino sizes
+        */
+        function setSizeForContainer(containerName) {
+            var container = document.getElementById(containerName);
+
+            var d = document;
+            var e = d.documentElement;
+            var x = window.innerWidth || e.clientWidth || this.container.clientWidth;
+            var y = window.innerHeight || e.clientHeight || this.container.clientHeight;
+
+            var WIDTH = x;
+            var HEIGHT = y;
+
+            var oldstyle = container.getAttribute("style");
+            oldstyle += "display:block; width:" + WIDTH + "px; height:" + (HEIGHT - 20) + "px;";
+            container.setAttribute("style", oldstyle);
+
+            container.style.width = WIDTH + 'px';
+            container.style.height = (HEIGHT - 20) + 'px';
+        }
+
+        function downloadChartCSV() {
+            /*
+                In this version, the csv is precomputed
+             */
+            var csvData = csvAnalysis;
+
+            downloadFile("chartanalysis.csv", csvData);
+        }
+
+        function pressReorderWires() {
+            wireOrder.reorderFlag = true;
+            pressGenerate();
+        }
+
+        function pressResetWires() {
+            wireOrder.resetFlag = true;
+            pressGenerate();
+        }
+
+        function pressSwap() {
+            wireOrder.swapFlag = true;
+            pressGenerate();
+        }
+
+        function pressDecompose() {
+            document.getElementById('btnParse').disabled = !document.getElementById('decomposeCheckBox').checked;
+            pressGenerate();
+        }
+
+        function pressTDelay() {
+            document.getElementById('onetpertime').disabled = !document.getElementById('distillandconsume').checked;
+            if (document.getElementById('onetpertime').disabled)
+                document.getElementById('onetpertime').checked = false;
+            pressGenerate();
+        }
+
+    </script>
 </head>
 
 <body>
-<div style="width:40vw; height:1000vh; float:left;">
-<div style="background-color: darkred">
-    <select id="circuitgenerator" onchange="otherCircuitSelected()">
-        <option value="qrom">QROM</option>
-        <option value="majorana">Majorana</option>
-        <!--<option value="chemistry2">Chemistry2</option>-->
-        <option value="adder">Gidney Adder</option>
-        <option value="qftadder">QFT Adder</option>
-        <option value="cuccaro" selected="selected">Cuccaro Adder</option>
-    </select>
-    Parameters:
-<br>
+    <div style="width:40vw; height:1000vh; float:left;">
+        <div style="background-color: darkred">
+            <select id="circuitgenerator" onchange="otherCircuitSelected()">
+                <option value="qrom">QROM</option>
+                <option value="majorana">Majorana</option>
+                <!--<option value="chemistry2">Chemistry2</option>-->
+                <option value="adder">Gidney Adder</option>
+                <option value="qftadder">QFT Adder</option>
+                <option value="cuccaro" selected="selected">Cuccaro Adder</option>
+            </select>
+            Parameters:
+            <br>
 
-    <div id="paramsDiv"></div>
-</div>
+            <div id="paramsDiv"></div>
+        </div>
 
-<div style="background-color: darkgreen">
-Max avail. distilled A: <input id="nrMaxAvailable" value="0" size="3" type="number" min=0 onchange="pressGenerate()">
-<br>
-<input type=checkbox id=decomposeCheckBox onclick="pressDecompose()">Decompose to Clifford+T</input>
-<br>
-<input type=checkbox id=distillandconsume onclick="pressTDelay()">Distill and consume T states</input>
-<br>
-<input type=checkbox id=onetpertime disabled onclick="pressGenerate()">One T gate per time step</input>
-<br>
-<input type=checkbox id=novisual onclick="pressGenerate()">No visualisation (faster)</input>
-<!--<br>
-Quirk link: <a id="quirk" href="#" target="_blank">Link to Quirk (see next textbox)</a>
--->
-<br>
+        <div style="background-color: darkgreen">
+            Max avail. distilled A:
+            <input id="nrMaxAvailable" value="0" size="3" type="number" min=0 onchange="pressGenerate()">
+            <br>
+            <input type=checkbox id=decomposeCheckBox onclick="pressDecompose()">Decompose to Clifford+T</input>
+            <br>
+            <input type=checkbox id=distillandconsume onclick="pressTDelay()">Distill and consume T states</input>
+            <br>
+            <input type=checkbox id=onetpertime disabled onclick="pressGenerate()">One T gate per time step</input>
+            <br>
+            <input type=checkbox id=novisual onclick="pressGenerate()">No visualisation (faster)</input>
+            <br>
 
-    <!-- Tab links -->
-    <div class="tab">
-        <button id="defaultOpen" class="tablinks" onclick="openTab(event, 'Console')">Console</button>
-        <button class="tablinks" onclick="openTab(event, 'Raw')">Raw Circ.</button>
-        <button class="tablinks" onclick="openTab(event, 'Sched')">Sched. Circ.</button>
-        <button class="tablinks" onclick="openTab(event, 'Link')">Link</button>
-        <button class="tablinks" onclick="openTab(event, 'Memory')">Memory</button>
-        <button class="tablinks" onclick="openTab(event, 'Chart')">Chart</button>
-        <button class="tablinks" onclick="openTab(event, 'Wires')">Wires</button>
-    </div>
+            <!-- Tab links -->
+            <div class="tab">
+                <button id="generatorDefaultOpen" class="tablinks" onclick="Tabs.openTab(event, 'generatorConsole', 'generator')">Console</button>
+                <button id="generator1" class="tablinks" onclick="Tabs.openTab(event, 'generatorRaw', 'generator')">Raw Circ.</button>
+                <button id="generator2" class="tablinks" onclick="Tabs.openTab(event, 'generatorSched', 'generator')">Sched. Circ.</button>
+                <button id="generator3" class="tablinks" onclick="Tabs.openTab(event, 'generatorLink', 'generator')">Link</button>
+                <button id="generator4" class="tablinks" onclick="Tabs.openTab(event, 'generatorMemory', 'generator')">Memory</button>
+                <button id="generator5" class="tablinks" onclick="Tabs.openTab(event, 'generatorChart', 'generator')">Chart</button>
+                <button id="generator6" class="tablinks" onclick="Tabs.openTab(event, 'generatorWires', 'generator')">Wires</button>
+            </div>
 
-    <!-- Tab content -->
+            <!-- Tab content -->
 
-    <div id="Console" class="tabcontent">
-        <textarea id="stats" cols="60" rows="20">Statistics</textarea>
-    </div>
+            <div id="generatorConsole" class="tabcontent">
+                <textarea id="stats" cols="60" rows="20">Statistics</textarea>
+            </div>
 
-    <div id="Raw" class="tabcontent">
-        <textarea id="circuit" cols="60" rows="20" readonly>nothing generated
+            <div id="generatorRaw" class="tabcontent">
+                <textarea id="circuit" cols="60" rows="20" readonly>nothing generated
         </textarea>
-    </div>
+            </div>
 
-    <div id="Sched" class="tabcontent">
-        <input id="gateslider" value="0" size="3" type="number" onchange="selectGate()"><br>
-        <textarea id="circuitnew" cols="60" rows="20" readonly>nothing generated
+            <div id="generatorSched" class="tabcontent">
+                <input id="gateslider" value="0" size="3" type="number" onchange="selectGate()">
+                <br>
+                <textarea id="circuitnew" cols="60" rows="20" readonly>nothing generated
         </textarea>
-    </div>
+            </div>
 
-    <div id="Link" class="tabcontent">
-        Copy and paste link from Quirk to parse circuit<br>
-        <textarea id="quirkLink" cols="60" rows="20">nothing copied&pasted
+            <div id="generatorLink" class="tabcontent">
+                Copy and paste link from Quirk to parse circuit
+                <br>
+                <textarea id="quirkLink" cols="60" rows="20">nothing copied&pasted
         </textarea>
-        <br>
-        <input id=btnParse type=button value="Parse" onclick="QuirkLink.parseLink()">
-        <input id=btnGIF type=button value="Get From Frame" onclick="QuirkLink.getLinkFromIFrame()">
-        <input id=btnSave type=button value="Save To Memory" onclick="QuirkLink.saveToMemory()">
+                <br>
+                <input id=btnParse type=button value="Parse" onclick="QuirkLink.parseLink()">
+                <input id=btnGIF type=button value="Get From Frame" onclick="QuirkLink.getLinkFromIFrame()">
+                <input id=btnSave type=button value="Save To Memory" onclick="QuirkLink.saveToMemory()">
+            </div>
+
+            <div id="generatorMemory" class="tabcontent">
+                Saved Quirk Links:
+                <br>
+                <input type="button" value="Get and Save To Memory" onclick="QuirkLink.getLinkFromIFrame(); QuirkLink.saveToMemory()">
+                <br>
+            </div>
+
+            <div id="generatorChart" class="tabcontent">
+                Look ahead:
+                <input type="number" id="lookahead" min=0 onchange="pressGenerate()" value="0">
+                <br>
+                <input type="button" value="Download CSV" onclick="downloadChartCSV()">
+                <br>
+                <canvas id="analysisChart" width="200" height="100" style="background-color: white"></canvas>
+            </div>
+
+            <div id="generatorWires" class="tabcontent">
+                <input type=button id=reorderwires onclick='pressReorderWires()' value="Reorder wires based on first usage"></input>
+                <br>
+                <input type=button id=resetwires onclick='pressResetWires()' value="Reset wire order"></input>
+                <br> The following order is used. Change by clicking pairs to swap.
+                <div id="wireswapperdiv"></div>
+            </div>
+        </div>
     </div>
 
-    <div id="Memory" class="tabcontent">
-        Saved Quirk Links:<br>
-        <input type="button" value="Get and Save To Memory" onclick="QuirkLink.getLinkFromIFrame(); QuirkLink.saveToMemory()">
-        <br>
-        <input type="button" value="Download Memory" onclick="downloadMemory()">
+    <div id="contentframe" style="position:relative; top: 0px; left: 0px; float:right; width:57vw;height:100vh">
+        <div class="tab">
+            <button id="viewTabQuirk" class="tablinks" onclick="Tabs.openTab(event, 'viewQuirk', 'view')">Quirk</button>
+            <button id="viewTabDefect" class="tablinks" onclick="Tabs.openTab(event, 'viewDefect', 'view')">Defects</button>
+            <button id="viewTabPlumb" class="tablinks" onclick="Tabs.openTab(event, 'viewPlumb', 'view')">Plumbing</button>
+            <button id="viewTabSetup" class="tablinks" onclick="Tabs.openTab(event, 'viewSetup', 'view')">Setup</button>
+        </div>
+
+        <div id="viewQuirk" class="tabcontent">
+            <iframe id="quirkiframe" src="#" style="width:153%;height:150%;">
+                <!-- the css scales to 0.65 the contents of the iframe,
+            and this style is applied afterwards to set the width to 1/0.65 -->
+            </iframe>
+        </div>
+
+        <div id="viewDefect" class="tabcontent">
+            <div class=menu name=menu>
+                Show:
+                <input type=checkbox id="menuDefectBoxesChk" checked="checked" onclick="visualisationDefects.checkboxClick(menuDefects)"
+                    autocomplete="off">Boxes</input>
+                <input type=checkbox id="menuDefectPrimalChk" checked="checked" onclick="visualisationDefects.checkboxClick(menuDefects)"
+                    autocomplete="off">Primal</input>
+                <input type=checkbox id="menuDefectDualChk" checked="checked" onclick="visualisationDefects.checkboxClick(menuDefects)" autocomplete="off">Dual</input>
+            </div>
+            <!--where the visualisation is placed-->
+            <div id=container1 name=container1 style="border:4px solid green;"></div>
+        </div>
+
+        <div id="viewPlumb" class="tabcontent">
+            <div class=menu name=menu>
+                Show:
+                <input type=checkbox id="plUnitsChk" checked="checked" onclick="visualisationPlumb.checkboxClick(menuPlumb)" autocomplete="off">Units</input>
+                <input type=checkbox id="plPrimalChk" checked="checked" onclick="visualisationPlumb.checkboxClick(menuPlumb)" autocomplete="off">Primal</input>
+                <input type=checkbox id="plDualChk" checked="checked" onclick="visualisationPlumb.checkboxClick(menuPlumb)" autocomplete="off">Dual</input>
+            </div>
+            <!--where the visualisation is placed-->
+            <div id=container2 name=container2 style="border:4px solid blue;"></div>
+        </div>
+
+        <!-- Tab content -->
+        <div id="viewSetup" class="tabcontent">
+            <div class=menu name=menu>
+                Manual Visualisation:
+                <input type="button" value="Start" onclick="CompilationHelpers.startCompiled('circuitnew')">
+                <input type="button" value="View" onclick="startVisualisation()">
+                <input type="button" value="Clean" onclick="visualisationDefects.deleteAllSceneRelated(); visualisationPlumb.deleteAllSceneRelated();">
+            </div>
+
+            <div class=menu>
+                Enable Visualisation:
+                <input id=visQuirkBox type="checkbox" checked>Quirk</input>
+                <input id=visDefectBox type="checkbox" checked>Defect</input>
+                <input id=visPlumbBox type="checkbox" checked>Plumb</input>
+            </div>
+
+            <!--download links for the json files generated-->
+            <p id=downloadlinks name=downloadlinks>
+                there are no files to download
+            </p>
+            <!--where the emscripten stdout is printed-->
+            <textarea id="output" rows="40" cols="80">
+            test test
+        </textarea>
+        </div>
     </div>
 
-    <div id="Chart" class="tabcontent">
-        Look ahead:<input type="number" id="lookahead" min=0 onchange="pressGenerate()" value="0">
-        <br>
-        <input type="button" value="Download CSV" onclick="downloadChartCSV()">
-        <br>
-        <canvas id="analysisChart" width="200" height="100" style="background-color: white"></canvas>
-    </div>
-
-    <div id="Wires" class="tabcontent">
-        <input type=button id=reorderwires onclick='pressReorderWires()' value="Reorder wires based on first usage"></input>
-        <br>
-        <input type=button id=resetwires onclick='pressResetWires()' value="Reset wire order"></input>
-        <br>
-        The following order is used. Change by clicking pairs to swap.
-        <div id="wireswapperdiv"></div>
-    </div>
-</div>
-</div>
-
-<script>
-    function downloadMemory()
-    {
-        var allLinksFromMemory = QuirkLink.getAllLinksFromMemory();
-        downloadFile("memory.txt", allLinksFromMemory);
-    }
-
-    function downloadChartCSV()
-    {
+    <script>
         /*
-            In this version, the csv is precomputed
-         */
-        var csvData = csvAnalysis;
+            Set the size of the visualisations
+        */
+        setSizeForContainer("viewDefect");
+        setSizeForContainer("viewPlumb");
+        setSizeForContainer("viewQuirk");
 
-        downloadFile("chartanalysis.csv", csvData);
-    }
+        /*
+          From the WebGL  part. 
+          For a reason which is unknown to me, the containers need to be visible
+          for the ThreeJS renderers to work. This is why, I am simulating clicks on the divs
+        */
+        document.getElementById("viewDefect").click();
+        visualisationDefects.setup_visualisation("container1");
 
-    function pressReorderWires()
-    {
-        wireOrder.reorderFlag = true;
+        //   document.getElementsByName("b4")[0].dispatchEvent(event);
+        document.getElementById("viewPlumb").click();
+        visualisationPlumb.setup_visualisation("container2");
+
+        /*
+          Default open tab
+        */
+        //document.getElementById("viewTabEmscripten").click();
+
+        resetToolParameters();
+
+        document.getElementById("generatorDefaultOpen").click();
+
+        document.getElementById("viewTabQuirk").click();
+        // document.getElementById("quirkiframe").onload = function () {
+        //     //console.log("Quirk Loaded!");
+        //     alert("Alert!");
+        //     //document.getElementById("generatorDefaultOpen").click();
+        //     document.getElementById("viewTabEmscripten").click();
+        // }
+
         pressGenerate();
-    }
-
-    function pressResetWires()
-    {
-        wireOrder.resetFlag = true;
-        pressGenerate();
-    }
-
-    function pressSwap()
-    {
-        wireOrder.swapFlag = true;
-        pressGenerate();
-    }
-
-    function pressDecompose()
-    {
-        document.getElementById('btnParse').disabled = !document.getElementById('decomposeCheckBox').checked;
-        pressGenerate();
-    }
-
-    function pressTDelay()
-    {
-        document.getElementById('onetpertime').disabled = !document.getElementById('distillandconsume').checked;
-        if(document.getElementById('onetpertime').disabled)
-            document.getElementById('onetpertime').checked = false;
-        pressGenerate();
-    }
-</script>
-
-<div id="contentframe" style="position:relative; top: 0px; left: 0px; float:right; width:57vw;height:100vh">
-    <iframe id="quirkiframe" src="#" style="width:153%;height:150%;">
-        <!-- the css scales to 0.65 the contents of the iframe,
-        and this style is applied afterwards to set the width to 1/0.65 -->
-    </iframe>
-</div>
-
-<script>
-    resetToolParameters();
-    pressGenerate();
-    document.getElementById("defaultOpen").click();
-</script>
+    </script>
 
 </body>
 

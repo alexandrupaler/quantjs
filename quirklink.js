@@ -131,7 +131,7 @@ QuirkLink.checkCircuitLengthAndCorrect = function(circuit, required, localNrVars
     }
 }
 
-function arrangeDecomposedCircuit(nGateList)
+function arrangeDecomposedCircuit(nGateList, wireOrder)
 {
     var timeStep = -1;
     var newCommands = new Array();//used for sched circ. one gate per line in file
@@ -156,7 +156,9 @@ function arrangeDecomposedCircuit(nGateList)
 
         for(var j=0; j<parsedGate.wires.length; j++)
         {
-            scheduledGate.wires.push(Number(parsedGate.wires[j]));
+            //scheduledGate.wires.push(Number(parsedGate.wires[j]));
+            var newWireNumber = wireOrder.getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[j])));
+            scheduledGate.wires.push(newWireNumber);
         }
 
         switch (parsedGate.gateType[0]) {
@@ -273,11 +275,8 @@ function scheduleGateList(nGateList, nrTGates)
 }
 
 
-QuirkLink.constructQuirkLink = function(nGateList, analysisData, wireOrder)
+QuirkLink.constructQuirkLink = function(nGateList, analysisData)
 {
-    //incerc sa il fac totusi sa fie independent de wireOrder?
-    //si sa existe ceva anonim? - deocamdata nu.
-
     this.cleanOtherGatesJSON();
 
     var returnObj = [];
@@ -301,9 +300,9 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData, wireOrder)
 
         if(parsedGate.gateType[0] == 'K' || parsedGate.gateType[0] == 'U')
         {
-            var a1 = wireOrder.getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[0])));
-            var b1 = wireOrder.getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[1])));
-            var ab1 = wireOrder.getWireNumber(Number(WireUtils.eliminateWireNegation(parsedGate.wires[2])));
+            var a1 = Number(WireUtils.eliminateWireNegation(parsedGate.wires[0]));
+            var b1 = Number(WireUtils.eliminateWireNegation(parsedGate.wires[1]));
+            var ab1 = Number(WireUtils.eliminateWireNegation(parsedGate.wires[2]));
 
             if(!toolParameters.noVisualisation)
             {
@@ -334,7 +333,7 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData, wireOrder)
             //after rep qubits
             var afterRepQ = nr1 + nr1 - 1;
             for(var ci=afterRepQ; ci<afterRepQ + nr2; ci++) {
-                circuit[parsedGate.timeStep][wireOrder.getWireNumber(ci)] = "X";
+                circuit[parsedGate.timeStep][ci] = "X";
             }
         }
         else if(parsedGate.gateType[0] == 'X' || parsedGate.gateType[0] == 'Y' || parsedGate.gateType[0] == 'Z')
@@ -358,14 +357,14 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData, wireOrder)
                     qComm = this.antiControlString;
                     wire = WireUtils.eliminateWireNegation(wire);
                 }
-                circuit[parsedGate.timeStep][wireOrder.getWireNumber(wire)] = qComm;//"dec1"
+                circuit[parsedGate.timeStep][wire] = qComm;//"dec1"
             }
 
             //after rep qubits
             var targetsStart = nr1;
             for(var ci=targetsStart; ci<parsedGate.wires.length; ci++) {
                 var wire = parsedGate.wires[ci];
-                circuit[parsedGate.timeStep][wireOrder.getWireNumber(wire)] = rotId;
+                circuit[parsedGate.timeStep][wire] = rotId;
             }
         }
         else
@@ -374,7 +373,7 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData, wireOrder)
             var fromWhere = 0;
             switch (parsedGate.gateType[0]) {
                 case "c":
-                    var ctr = wireOrder.getWireNumber(Number(parsedGate.wires[0]));
+                    var ctr = Number(parsedGate.wires[0]);
                     if(!toolParameters.noVisualisation)
                         circuit[parsedGate.timeStep][ctr] = this.controlString;
                     quirkGateType = "X";//allow only CX for the moment
@@ -402,7 +401,7 @@ QuirkLink.constructQuirkLink = function(nGateList, analysisData, wireOrder)
 
             for(var kk = fromWhere; kk < parsedGate.wires.length; kk++)
             {
-                var tgt = wireOrder.getWireNumber(Number(parsedGate.wires[kk]));
+                var tgt = Number(parsedGate.wires[kk]);
 
                 if(!toolParameters.noVisualisation)
                 {
@@ -639,21 +638,5 @@ QuirkLink.saveToMemory = function()
     msg += "<span onclick=QuirkLink.deleteFromMemory(\"" + linkid + "\") style=\"cursor:pointer\">[X]</span>";
     msg += "</div>";
 
-    document.getElementById("Memory").innerHTML += msg;
-}
-
-/*
-    Used for saving to file
- */
-QuirkLink.getAllLinksFromMemory = function()
-{
-    return document.getElementById("Memory").innerHTML;
-}
-
-/*
-    Used for loading from file
- */
-QuirkLink.reloadIntoMemory = function(memory)
-{
-    document.getElementById("Memory").innerHTML = memory;
+    document.getElementById("generatorMemory").innerHTML += msg;
 }
