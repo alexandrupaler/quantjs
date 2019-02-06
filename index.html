@@ -471,9 +471,9 @@
                 <option value="qrom">QROM</option>
                 <option value="majorana">Majorana</option>
                 <!--<option value="chemistry2">Chemistry2</option>-->
-                <option value="adder">Gidney Adder</option>
+                <option value="adder" selected="selected">Gidney Adder</option>
                 <option value="qftadder">QFT Adder</option>
-                <option value="cuccaro" selected="selected">Cuccaro Adder</option>
+                <option value="cuccaro">Cuccaro Adder</option>
             </select>
             Parameters:
             <br>
@@ -485,9 +485,9 @@
             Max avail. distilled A:
             <input id="nrMaxAvailable" value="0" size="3" type="number" min=0 onchange="pressGenerate()">
             <br>
-            <input type=checkbox id=decomposeCheckBox onclick="pressDecompose()">Decompose to Clifford+T</input>
+            <input checked type=checkbox id=decomposeCheckBox onclick="pressDecompose()">Decompose to Clifford+T</input>
             <br>
-            <input type=checkbox id=distillandconsume onclick="pressTDelay()">Distill and consume T states</input>
+            <input checked type=checkbox id=distillandconsume onclick="pressTDelay()">Distill and consume T states</input>
             <br>
             <input type=checkbox id=onetpertime disabled onclick="pressGenerate()">One T gate per time step</input>
             <br>
@@ -558,6 +558,11 @@
                 <div id="wireswapperdiv"></div>
             </div>
         </div>
+        <b>This tool is alpha version, and was prepared to present the concept of SurfBraid.</b><br>
+        Be sure to have a GPU for large WebGL visualisations - otherwise disable it (see checkbox below).
+        Configure visualisation also from the Setup tab on the right. This version includes an Emscripten compiled C++ module.
+        Many features of that module are not unlocked from the GUI - this is why sometimes the visualisation will not update.
+        Some circuit generators are not transformed into Clifford+T, because that corresponding Javascript component was not updated to handle those gate types.
     </div>
 
     <div id="contentframe" style="position:relative; top: 0px; left: 0px; float:right; width:57vw;height:100vh">
@@ -655,7 +660,11 @@
 
         document.getElementById("generatorDefaultOpen").click();
 
-        document.getElementById("viewTabQuirk").click();
+        // document.getElementById("viewTabQuirk").click();
+
+        //the default is the defects tab
+        document.getElementById("viewTabDefect").click();
+
         // document.getElementById("quirkiframe").onload = function () {
         //     //console.log("Quirk Loaded!");
         //     alert("Alert!");
